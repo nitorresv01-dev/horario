@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Planificador 40H - Turnos Farmacia</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+      -webkit-touch-callout: none;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+    input, textarea, select {
+      user-select: text;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Estilos de turnos exactos a Shifter */
+    .bg-t1 { background-color: #ffdca8; color: #3d2304; }
+    .bg-t2 { background-color: #82cfff; color: #082f49; }
+    .bg-libre { background-color: #c3e6cb; color: #064e3b; }
+    .bg-feriado { background-color: #94a3b8; color: #ffffff; }
+    .bg-custom-purple { background-color: #e9d5ff; color: #581c87; }
+    .bg-custom-rose { background-color: #fecdd3; color: #881337; }
+    .bg-custom-yellow { background-color: #fef08a; color: #713f12; }
+  </style>
+</head>
+<body class="bg-slate-200 text-slate-800 antialiased min-h-screen">
+
+  <!-- CONTENEDOR PRINCIPAL TIPO APP (ANCHO MÓVIL) -->
+  <div class="w-full max-w-md mx-auto bg-white min-h-screen shadow-2xl flex flex-col relative pb-28">
+    
+    <!-- HEADER ESTILO SHIFTER -->
+    <header class="bg-[#37474f] text-white sticky top-0 z-30 shadow-md">
+      <!-- Barra superior de título -->
+      <div class="flex justify-between items-center px-3.5 py-2 text-xs font-bold border-b border-slate-600/60">
+        <div class="flex items-center gap-1.5">
+          <span class="text-base">💊</span>
+          <span id="header-subtitle" class="text-teal-300 uppercase font-black tracking-wider text-[11px]">
+            SAN PABLO & CRUZ VERDE
+          </span>
+        </div>
+        <button 
+          onclick="app.setTab('sueldos')" 
+          class="bg-slate-700/80 hover:bg-slate-600 text-slate-100 text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1 active:scale-95"
+        >
+          <span>META 40H</span>
+          <span id="badge-weekly-hours" class="text-emerald-300">-- h/s</span>
+        </button>
+      </div>
+
+      <!-- Navegación de Mes -->
+      <div class="flex items-center justify-between px-3 py-2">
+        <button onclick="app.prevMonth()" class="p-1.5 hover:bg-slate-700/80 rounded-lg text-slate-200 active:scale-95 transition-all">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="text-center">
+          <h1 id="month-title-display" class="font-black text-sm uppercase tracking-wider text-white">
+            SEPTIEMBRE 2026
+          </h1>
+        </div>
+        <button onclick="app.nextMonth()" class="p-1.5 hover:bg-slate-700/80 rounded-lg text-slate-200 active:scale-95 transition-all">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ÁREA DE CONTENIDO DINÁMICO (VISTAS) -->
+    <main id="main-content" class="flex-1 flex flex-col p-2 bg-slate-50"></main>
+
+    <!-- BARRA DE NAVEGACIÓN INFERIOR (Z-INDEX ALTO PARA EVITAR BLOQUEOS EN TIINY.HOST) -->
+    <nav class="fixed bottom-0 left-0 right-0 z-[9999] bg-[#263238] text-white border-t border-slate-700 shadow-2xl">
+      <div class="max-w-md mx-auto flex text-center font-bold text-[10px]">
+        
+        <button 
+          id="nav-btn-calendario"
+          onclick="app.setTab('calendario')" 
+          class="flex-1 py-2.5 transition-all text-slate-400 hover:text-slate-200 active:scale-95"
+        >
+          <span class="block text-base mb-0.5">📅</span>
+          <span>PINTAR</span>
+        </button>
+
+        <button 
+          id="nav-btn-turnos"
+          onclick="app.setTab('turnos')" 
+          class="flex-1 py-2.5 transition-all text-slate-400 hover:text-slate-200 active:scale-95"
+        >
+          <span class="block text-base mb-0.5">⚙️</span>
+          <span>TURNOS</span>
+        </button>
+
+        <button 
+          id="nav-btn-locales"
+          onclick="app.setTab('locales')" 
+          class="flex-1 py-2.5 transition-all text-slate-400 hover:text-slate-200 active:scale-95"
+        >
+          <span class="block text-base mb-0.5">📍</span>
+          <span>LOCALES</span>
+        </button>
+
+        <button 
+          id="nav-btn-sueldos"
+          onclick="app.setTab('sueldos')" 
+          class="flex-1 py-2.5 transition-all text-slate-400 hover:text-slate-200 active:scale-95"
+        >
+          <span class="block text-base mb-0.5">💰</span>
+          <span>SUELDO</span>
+        </button>
+
+        <button 
+          id="nav-btn-whatsapp"
+          onclick="app.setTab('whatsapp')" 
+          class="flex-1 py-2.5 transition-all text-slate-400 hover:text-slate-200 active:scale-95"
+        >
+          <span class="block text-base mb-0.5">📤</span>
+          <span>ENVIAR</span>
+        </button>
+
+      </div>
+    </nav>
+
+  </div>
+
+  <!-- CONTENEDOR MODALES -->
+  <div id="modal-container" class="hidden fixed inset-0 bg-black/70 z-[10000] flex items-center justify-center p-4"></div>
+
+  <!-- TOAST NOTIFICACIONES -->
+  <div id="toast" class="hidden fixed top-3 left-1/2 -translate-x-1/2 z-[10001] px-4 py-2 rounded-xl shadow-2xl text-xs font-bold text-white flex items-center gap-2 transition-all"></div>
+
+  <!-- SCRIPT CON LA LÓGICA Y ESTADO COMPLETO -->
+  <script>
+    // --- FERIADOS OFICIALES DE CHILE ---
+    const CHILE_HOLIDAYS = {
+      '2026-01-01': { name: 'Año Nuevo', irrenunciable: true },
+      '2026-04-03': { name: 'Viernes Santo', irrenunciable: false },
+      '2026-04-04': { name: 'Sábado Santo', irrenunciable: false },
+      '2026-05-01': { name: 'Día del Trabajo', irrenunciable: true },
+      '2026-05-21': { name: 'Glorias Navales', irrenunciable: false },
+      '2026-06-21': { name: 'Pueblos Indígenas', irrenunciable: false },
+      '2026-06-29': { name: 'San Pedro y San Pablo', irrenunciable: false },
+      '2026-07-16': { name: 'Virgen del Carmen', irrenunciable: false },
+      '2026-08-15': { name: 'Asunción de la Virgen', irrenunciable: false },
+      '2026-09-18': { name: 'Fiestas Patrias', irrenunciable: true },
+      '2026-09-19': { name: 'Glorias del Ejército', irrenunciable: true },
+      '2026-10-12': { name: 'Encuentro de Dos Mundos', irrenunciable: false },
+      '2026-10-31': { name: 'Día Iglesias Evangélicas', irrenunciable: false },
+      '2026-11-01': { name: 'Día de Todos los Santos', irrenunciable: false },
+      '2026-12-08': { name: 'Inmaculada Concepción', irrenunciable: false },
+      '2026-12-25': { name: 'Navidad', irrenunciable: true },
+      '2027-01-01': { name: 'Año Nuevo', irrenunciable: true },
+      '2027-03-26': { name: 'Viernes Santo', irrenunciable: false },
+      '2027-03-27': { name: 'Sábado Santo', irrenunciable: false },
+      '2027-05-01': { name: 'Día del Trabajo', irrenunciable: true },
+      '2027-05-21': { name: 'Glorias Navales', irrenunciable: false },
+      '2027-06-21': { name: 'Pueblos Indígenas', irrenunciable: false },
+      '2027-06-28': { name: 'San Pedro y San Pablo', irrenunciable: false },
+      '2027-07-16': { name: 'Virgen del Carmen', irrenunciable: false },
+      '2027-08-15': { name: 'Asunción de la Virgen', irrenunciable: false },
+      '2027-09-18': { name: 'Fiestas Patrias', irrenunciable: true },
+      '2027-09-19': { name: 'Glorias del Ejército', irrenunciable: true },
+      '2027-10-11': { name: 'Encuentro de Dos Mundos', irrenunciable: false },
+      '2027-10-31': { name: 'Día Iglesias Evangélicas', irrenunciable: false },
+      '2027-11-01': { name: 'Día de Todos los Santos', irrenunciable: false },
+      '2027-12-08': { name: 'Inmaculada Concepción', irrenunciable: false },
+      '2027-12-25': { name: 'Navidad', irrenunciable: true }
+    };
+
+    const MONTH_NAMES = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    // --- ESTADO GLOBAL DE LA APP ---
+    window.app = {
+      activeTab: 'calendario',
+      currentYear: 2026,
+      currentMonthIndex: 8, // Septiembre
+      targetSalary: 1700000,
+      targetHours: 40,
+      dominicalSurcharge: 30,
+      locationFilter: 'all',
+      activeBrushShift: 'T1',
+      activeBrushLocation: 'loc-sp',
+
+      locations: [
+        { id: 'loc-sp', name: 'Farmacia San Pablo (Casa Matriz)', short: 'San Pablo', rut: 'RUT Empresa A (Independiente)', role: '2do QF (Asistente en semana)', color: '#0284c7' },
+        { id: 'loc-cv1', name: 'Cruz Verde Franquicia 1 (Sábados)', short: 'Cruz Verde #1', rut: 'RUT Franquicia B (Sociedad CV)', role: 'DT Subrogante (Sábados)', color: '#059669' },
+        { id: 'loc-cv2', name: 'Cruz Verde Franquicia 2 (Domingos)', short: 'Cruz Verde #2', rut: 'RUT Franquicia B (Sociedad CV)', role: 'DT Subrogante (Domingos)', color: '#0d9488' }
+      ],
+
+      shifts: [
+        { id: 'T1', name: 'Turno Regular (San Pablo / Sábados)', start: '10:15', end: '18:30', breakMin: 60, cssClass: 'bg-t1', isOff: false },
+        { id: 'T2', name: 'Turno DT Domingo (Cruz Verde)', start: '09:00', end: '19:00', breakMin: 150, cssClass: 'bg-t2', isOff: false },
+        { id: 'Libre', name: 'Descanso Compensatorio / Libre', start: '', end: '', breakMin: 0, cssClass: 'bg-libre', isOff: true },
+        { id: 'F', name: 'Feriado Legal Irrenunciable', start: '', end: '', breakMin: 0, cssClass: 'bg-feriado', isOff: true }
+      ],
+
+      schedules: {
+        '2026-09': {
+          "1": { shiftId: "T1", locationId: "loc-sp" },
+          "2": { shiftId: "T1", locationId: "loc-sp" },
+          "3": { shiftId: "T1", locationId: "loc-sp" },
+          "4": { shiftId: "T1", locationId: "loc-sp" },
+          "5": { shiftId: "T1", locationId: "loc-cv1" },
+          "6": { shiftId: "T2", locationId: "loc-cv2" },
+          "7": { shiftId: "Libre", locationId: "loc-sp" },
+          "8": { shiftId: "T1", locationId: "loc-sp" },
+          "9": { shiftId: "T1", locationId: "loc-sp" },
+          "10": { shiftId: "T1", locationId: "loc-sp" },
+          "11": { shiftId: "T1", locationId: "loc-sp" },
+          "12": { shiftId: "T1", locationId: "loc-cv1" },
+          "13": { shiftId: "Libre", locationId: "loc-sp" },
+          "14": { shiftId: "T1", locationId: "loc-sp" },
+          "15": { shiftId: "T1", locationId: "loc-sp" },
+          "16": { shiftId: "T1", locationId: "loc-sp" },
+          "17": { shiftId: "Libre", locationId: "loc-sp" },
+          "18": { shiftId: "F", locationId: "loc-sp" },
+          "19": { shiftId: "F", locationId: "loc-cv1" },
+          "20": { shiftId: "T2", locationId: "loc-cv2" },
+          "21": { shiftId: "Libre", locationId: "loc-sp" },
+          "22": { shiftId: "T1", locationId: "loc-sp" },
+          "23": { shiftId: "T1", locationId: "loc-sp" },
+          "24": { shiftId: "T1", locationId: "loc-sp" },
+          "25": { shiftId: "T1", locationId: "loc-sp" },
+          "26": { shiftId: "T1", locationId: "loc-cv1" },
+          "27": { shiftId: "Libre", locationId: "loc-sp" },
+          "28": { shiftId: "Libre", locationId: "loc-sp" },
+          "29": { shiftId: "T1", locationId: "loc-sp" },
+          "30": { shiftId: "T1", locationId: "loc-sp" }
+        }
+      },
+
+      // --- UTILIDADES ---
+      calcNetHours(start, end, breakMin) {
+        if (!start || !end) return 0;
+        const [hS, mS] = start.split(':').map(Number);
+        const [hE, mE] = end.split(':').map(Number);
+        let minS = (hS * 60) + mS;
+        let minE = (hE * 60) + mE;
+        if (minE <= minS) minE += 24 * 60;
+        const netMin = minE - minS - (parseInt(breakMin) || 0);
+        return Math.max(0, netMin / 60);
+      },
+
+      formatMoney(val) {
+        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val || 0);
+      },
+
+      getMonthKey() {
+        return `${this.currentYear}-${String(this.currentMonthIndex + 1).padStart(2, '0')}`;
+      },
+
+      showToast(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.className = `fixed top-3 left-1/2 -translate-x-1/2 z-[10001] px-4 py-2 rounded-xl shadow-2xl text-xs font-bold text-white flex items-center gap-2 ${isError ? 'bg-rose-600' : 'bg-emerald-600'}`;
+        toast.innerHTML = `<span>${isError ? '⚠️' : '✅'}</span><span>${msg}</span>`;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 2500);
+      },
+
+      // --- NAVEGACIÓN ---
+      setTab(tab) {
+        this.activeTab = tab;
+        this.render();
+      },
+
+      prevMonth() {
+        if (this.currentMonthIndex === 0) {
+          this.currentMonthIndex = 11;
+          this.currentYear--;
+        } else {
+          this.currentMonthIndex--;
+        }
+        this.render();
+      },
+
+      nextMonth() {
+        if (this.currentMonthIndex === 11) {
+          this.currentMonthIndex = 0;
+          this.currentYear++;
+        } else {
+          this.currentMonthIndex++;
+        }
+        this.render();
+      },
+
+      // --- CLICS Y ASIGNACIÓN ---
+      toggleDay(day) {
+        const key = this.getMonthKey();
+        if (!this.schedules[key]) this.schedules[key] = {};
+        
+        const current = this.schedules[key][String(day)];
+        if (current && current.shiftId === this.activeBrushShift && current.locationId === this.activeBrushLocation) {
+          delete this.schedules[key][String(day)];
+        } else {
+          this.schedules[key][String(day)] = {
+            shiftId: this.activeBrushShift,
+            locationId: this.activeBrushLocation
+          };
+        }
+        this.render();
+      },
+
+      // --- CÁLCULO DE ESTADÍSTICAS DEL MES ---
+      getStats() {
+        const key = this.getMonthKey();
+        const sched = this.schedules[key] || {};
+        const daysInMonth = new Date(this.currentYear, this.currentMonthIndex + 1, 0).getDate();
+
+        let totalNetHours = 0;
+        let sundayHours = 0;
+        const hoursByLoc = {};
+        const daysByLoc = {};
+        this.locations.forEach(l => { hoursByLoc[l.id] = 0; daysByLoc[l.id] = 0; });
+        let offDays = 0;
+        let holidayDays = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const raw = sched[String(d)];
+          if (raw) {
+            const shift = this.shifts.find(s => s.id === raw.shiftId);
+            if (shift) {
+              if (shift.id === 'Libre') offDays++;
+              if (shift.id === 'F') holidayDays++;
+
+              if (!shift.isOff) {
+                const h = this.calcNetHours(shift.start, shift.end, shift.breakMin);
+                if (hoursByLoc[raw.locationId] !== undefined) {
+                  hoursByLoc[raw.locationId] += h;
+                  daysByLoc[raw.locationId] += 1;
+                }
+
+                const dObj = new Date(this.currentYear, this.currentMonthIndex, d);
+                if (dObj.getDay() === 0) sundayHours += h; // Domingo
+
+                if (this.locationFilter === 'all' || raw.locationId === this.locationFilter) {
+                  totalNetHours += h;
+                }
+              }
+            }
+          }
+        }
+
+        const avgWeekly = totalNetHours / (daysInMonth / 7);
+        const hoursSanPablo = hoursByLoc['loc-sp'] || 0;
+        let hoursCruzVerde = 0;
+        Object.keys(hoursByLoc).forEach(lId => {
+          if (lId !== 'loc-sp') hoursCruzVerde += hoursByLoc[lId];
+        });
+
+        const grandTotal = hoursSanPablo + hoursCruzVerde;
+        const baseRate = grandTotal > 0 ? (this.targetSalary / grandTotal) : (this.targetSalary / 160);
+
+        const salarySanPablo = hoursSanPablo * baseRate;
+        const sundayBonus = sundayHours * baseRate * (this.dominicalSurcharge / 100);
+        const salaryCruzVerde = (hoursCruzVerde * baseRate) + sundayBonus;
+
+        return {
+          totalNetHours,
+          avgWeekly,
+          sundayHours,
+          hoursByLoc,
+          daysByLoc,
+          hoursSanPablo,
+          hoursCruzVerde,
+          salarySanPablo,
+          salaryCruzVerde,
+          sundayBonus,
+          offDays,
+          holidayDays
+        };
+      },
+
+      // --- MATRIZ DE CALENDARIO (7 COLUMNAS ESTILO SHIFTER) ---
+      getMatrix() {
+        const daysInMonth = new Date(this.currentYear, this.currentMonthIndex + 1, 0).getDate();
+        const daysInPrev = new Date(this.currentYear, this.currentMonthIndex, 0).getDate();
+        const firstDay = new Date(this.currentYear, this.currentMonthIndex, 1);
+        
+        let offset = firstDay.getDay() - 1;
+        if (offset === -1) offset = 6; // Lunes = 0
+
+        const weeks = [];
+        let curWeek = [];
+
+        // Prev days
+        for (let i = offset - 1; i >= 0; i--) {
+          curWeek.push({ day: daysInPrev - i, isCurrent: false });
+        }
+
+        // Current days
+        for (let d = 1; d <= daysInMonth; d++) {
+          curWeek.push({ day: d, isCurrent: true });
+          if (curWeek.length === 7) {
+            weeks.push(curWeek);
+            curWeek = [];
+          }
+        }
+
+        // Next days
+        if (curWeek.length > 0) {
+          let nextD = 1;
+          while (curWeek.length < 7) {
+            curWeek.push({ day: nextD++, isCurrent: false });
+          }
+          weeks.push(curWeek);
+        }
+
+        return weeks;
+      },
+
+      // --- RENDER PRINCIPAL ---
+      render() {
+        // Actualizar Cabecera
+        document.getElementById('month-title-display').innerText = `${MONTH_NAMES[this.currentMonthIndex]} ${this.currentYear}`;
+        const stats = this.getStats();
+        document.getElementById('badge-weekly-hours').innerText = `${stats.avgWeekly.toFixed(1)} h/sem`;
+
+        // Actualizar botones de navegación inferior
+        const tabs = ['calendario', 'turnos', 'locales', 'sueldos', 'whatsapp'];
+        tabs.forEach(t => {
+          const btn = document.getElementById(`nav-btn-${t}`);
+          if (btn) {
+            if (this.activeTab === t) {
+              btn.className = 'flex-1 py-2.5 transition-all bg-[#37474f] text-teal-300 font-black border-t-2 border-teal-300';
+            } else {
+              btn.className = 'flex-1 py-2.5 transition-all text-slate-400 hover:text-slate-200';
+            }
+          }
+        });
+
+        // Contenido dinámico
+        const main = document.getElementById('main-content');
+        if (this.activeTab === 'calendario') {
+          main.innerHTML = this.renderCalendarView(stats);
+        } else if (this.activeTab === 'turnos') {
+          main.innerHTML = this.renderShiftsView();
+        } else if (this.activeTab === 'locales') {
+          main.innerHTML = this.renderLocationsView(stats);
+        } else if (this.activeTab === 'sueldos') {
+          main.innerHTML = this.renderSalaryView(stats);
+        } else if (this.activeTab === 'whatsapp') {
+          main.innerHTML = this.renderWhatsAppView(stats);
+        }
+      },
+
+      // --- VISTA 1: CALENDARIO COMPACTO ---
+      renderCalendarView(stats) {
+        const matrix = this.getMatrix();
+        const sched = this.schedules[this.getMonthKey()] || {};
+
+        // Resumen semanal
+        const weeklyStats = matrix.map(week => {
+          let wHours = 0;
+          week.forEach(c => {
+            if (c.isCurrent) {
+              const item = sched[String(c.day)];
+              if (item && (this.locationFilter === 'all' || item.locationId === this.locationFilter)) {
+                const shift = this.shifts.find(s => s.id === item.shiftId);
+                if (shift && !shift.isOff) {
+                  wHours += this.calcNetHours(shift.start, shift.end, shift.breakMin);
+                }
+              }
+            }
+          });
+          return { hours: wHours, exceeds: wHours > this.targetHours };
+        });
+
+        let gridRows = matrix.map((week, wIdx) => {
+          let cols = week.map(cell => {
+            if (!cell.isCurrent) {
+              return `
+                <div class="h-14 sm:h-16 p-1 border-r border-slate-200 last:border-r-0 bg-slate-50 flex flex-col justify-start">
+                  <span class="text-[10px] font-bold text-slate-300 leading-none">${cell.day}</span>
+                </div>
+              `;
+            }
+
+            const dayStr = String(cell.day).padStart(2, '0');
+            const fullDate = `${this.currentYear}-${String(this.currentMonthIndex + 1).padStart(2, '0')}-${dayStr}`;
+            const holiday = CHILE_HOLIDAYS[fullDate];
+
+            const item = sched[String(cell.day)];
+            const shift = item ? this.shifts.find(s => s.id === item.shiftId) : null;
+            const loc = item ? this.locations.find(l => l.id === item.locationId) : null;
+            const isDimmed = item && this.locationFilter !== 'all' && item.locationId !== this.locationFilter;
+
+            let cellBg = shift ? shift.cssClass : (holiday ? 'bg-rose-50 text-rose-900' : 'bg-white text-slate-800');
+
+            return `
+              <div 
+                onclick="app.toggleDay(${cell.day})" 
+                class="relative h-14 sm:h-16 p-0.5 sm:p-1 border-r border-slate-300 last:border-r-0 cursor-pointer flex flex-col justify-between transition-all select-none ${cellBg} ${isDimmed ? 'opacity-20 grayscale' : 'active:scale-95'}"
+              >
+                <div class="flex justify-between items-start leading-none pointer-events-none">
+                  ${holiday ? `<span class="text-[7px] font-black px-0.5 rounded ${holiday.irrenunciable ? 'bg-rose-600 text-white' : 'bg-rose-200 text-rose-900'}">F</span>` : '<span class="w-1"></span>'}
+                  <span class="text-[10px] sm:text-xs font-black ${holiday ? 'text-rose-600' : ''}">${cell.day}</span>
+                </div>
+
+                ${shift ? `
+                  <div class="text-center my-auto pointer-events-none">
+                    <span class="font-black text-xs sm:text-sm tracking-tight leading-none block">${shift.id}</span>
+                  </div>
+                ` : (holiday ? `<div class="text-[7px] font-bold text-rose-600 text-center truncate pointer-events-none">Feriado</div>` : '')}
+
+                ${shift && loc ? `
+                  <div class="flex justify-center pointer-events-none">
+                    <span class="text-[7px] font-bold px-1 rounded truncate max-w-full text-white leading-tight" style="background-color: ${loc.color}">${loc.short}</span>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('');
+
+          return `<div class="grid grid-cols-7 border-b border-slate-200 last:border-b-0">${cols}</div>`;
+        }).join('');
+
+        return `
+          <!-- Filtro y Promedio Rápido -->
+          <div class="flex justify-between items-center bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs mb-1.5 shadow-sm">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold text-slate-500">📍 Local:</span>
+              <select onchange="app.locationFilter = this.value; app.render();" class="text-xs font-bold bg-transparent outline-none text-slate-800 cursor-pointer">
+                <option value="all" ${this.locationFilter === 'all' ? 'selected' : ''}>Todos los Locales</option>
+                ${this.locations.map(l => `<option value="${l.id}" ${this.locationFilter === l.id ? 'selected' : ''}>${l.short}</option>`).join('')}
+              </select>
+            </div>
+            <div class="text-[11px] font-bold">
+              <span class="text-slate-500">Promedio: </span>
+              <span class="${stats.avgWeekly > this.targetHours ? 'text-red-600' : 'text-emerald-700'}">${stats.avgWeekly.toFixed(1)}h/sem</span>
+            </div>
+          </div>
+
+          <!-- Cuadrícula 7 Columnas exacta a Shifter -->
+          <div class="bg-white rounded-lg border-2 border-slate-900 overflow-hidden shadow-sm">
+            <div class="grid grid-cols-7 border-b border-slate-900 bg-slate-100 text-center text-[10px] sm:text-xs font-black uppercase text-slate-700">
+              <div class="py-1">LUN</div>
+              <div class="py-1">MAR</div>
+              <div class="py-1">MIÉ</div>
+              <div class="py-1">JUE</div>
+              <div class="py-1">VIE</div>
+              <div class="py-1 text-blue-700">SÁB</div>
+              <div class="py-1 text-blue-700">DOM</div>
+            </div>
+            ${gridRows}
+          </div>
+
+          <!-- Resumen de Horas por Semana -->
+          <div class="mt-2 bg-white rounded-lg p-2 border border-slate-200 shadow-sm flex items-center justify-between text-xs font-bold">
+            <span class="text-[10px] text-slate-500 uppercase tracking-tight font-black">Control Semanas:</span>
+            <div class="flex gap-1">
+              ${weeklyStats.map((w, idx) => `
+                <span class="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-black ${w.exceeds ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-slate-100 text-slate-700'}">
+                  S${idx + 1}: ${w.hours.toFixed(0)}h
+                </span>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Paleta de Pintar Rápida Inferior -->
+          <div class="mt-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-black uppercase text-slate-500">Pincel Activo:</span>
+              <select onchange="app.activeBrushLocation = this.value; app.render();" class="text-xs font-bold bg-slate-100 border border-slate-300 rounded px-1.5 py-0.5 outline-none max-w-[170px] truncate">
+                ${this.locations.map(l => `<option value="${l.id}" ${this.activeBrushLocation === l.id ? 'selected' : ''}>${l.short}</option>`).join('')}
+              </select>
+            </div>
+
+            <div class="grid grid-cols-4 gap-1">
+              ${this.shifts.map(shift => {
+                const isSel = this.activeBrushShift === shift.id;
+                return `
+                  <button 
+                    onclick="app.activeBrushShift = '${shift.id}'; app.render();" 
+                    class="py-1 px-1 rounded-md border text-center font-black text-xs transition-all ${shift.cssClass} ${isSel ? 'border-slate-900 ring-2 ring-slate-900/40 scale-102 font-black shadow' : 'border-transparent opacity-80'}"
+                  >
+                    ${shift.id}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      },
+
+      // --- VISTA 2: GESTOR DE TURNOS ---
+      renderShiftsView() {
+        return `
+          <div class="space-y-3 animate-in fade-in">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+              <div>
+                <h2 class="text-base font-black text-slate-900">Horarios y Turnos</h2>
+                <p class="text-[11px] text-slate-500">Configura entrada, salida y tiempos de colación.</p>
+              </div>
+              <button onclick="app.openShiftModal(null)" class="bg-slate-900 text-white text-xs font-black px-2.5 py-1.5 rounded-lg active:scale-95">
+                + Turno
+              </button>
+            </div>
+
+            <div class="space-y-2">
+              ${this.shifts.map(shift => `
+                <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-lg border border-slate-800 flex items-center justify-center font-black text-xs ${shift.cssClass}">
+                      ${shift.id}
+                    </div>
+                    <div>
+                      <h4 class="text-xs font-bold text-slate-900">${shift.name}</h4>
+                      <p class="text-[11px] text-slate-500">
+                        ${shift.isOff ? 'Día Libre / No Laboral' : `${shift.start} - ${shift.end} (${shift.breakMin} min colación = ${this.calcNetHours(shift.start, shift.end, shift.breakMin)}h)`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex gap-1">
+                    <button onclick="app.openShiftModal('${shift.id}')" class="bg-slate-100 p-1.5 rounded text-xs font-bold text-slate-700">✏️</button>
+                    <button onclick="app.deleteShift('${shift.id}')" class="bg-rose-50 p-1.5 rounded text-xs font-bold text-rose-600">🗑️</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      },
+
+      // --- VISTA 3: GESTOR DE LOCALES ---
+      renderLocationsView(stats) {
+        return `
+          <div class="space-y-3 animate-in fade-in">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+              <div>
+                <h2 class="text-base font-black text-slate-900">Locales y Razones Sociales</h2>
+                <p class="text-[11px] text-slate-500">Farmacias independientes y franquicias de turno.</p>
+              </div>
+              <button onclick="app.openLocationModal(null)" class="bg-slate-900 text-white text-xs font-black px-2.5 py-1.5 rounded-lg active:scale-95">
+                + Local
+              </button>
+            </div>
+
+            <div class="space-y-2">
+              ${this.locations.map(loc => `
+                <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-3 h-10 rounded-full" style="background-color: ${loc.color}"></div>
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <h4 class="text-xs font-bold text-slate-900">${loc.name}</h4>
+                        <span class="text-[9px] font-black text-white px-1.5 py-0.2 rounded" style="background-color: ${loc.color}">${loc.short}</span>
+                      </div>
+                      <p class="text-[10px] text-slate-500 font-medium">${loc.rut} • ${loc.role}</p>
+                      <p class="text-[10px] text-emerald-700 font-bold mt-0.5">${stats.daysByLoc[loc.id] || 0} turnos (${(stats.hoursByLoc[loc.id] || 0).toFixed(1)} hrs este mes)</p>
+                    </div>
+                  </div>
+
+                  <div class="flex gap-1">
+                    <button onclick="app.openLocationModal('${loc.id}')" class="bg-slate-100 p-1.5 rounded text-xs font-bold text-slate-700">✏️</button>
+                    <button onclick="app.deleteLocation('${loc.id}')" class="bg-rose-50 p-1.5 rounded text-xs font-bold text-rose-600">🗑️</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      },
+
+      // --- VISTA 4: SUELDO Y 2 CONTRATOS ---
+      renderSalaryView(stats) {
+        return `
+          <div class="space-y-3 animate-in fade-in">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+              <div>
+                <h2 class="text-base font-black text-slate-900">Desglose Legal 2 Contratos</h2>
+                <p class="text-[11px] text-slate-500">División por RUT y recargo dominical legal (30%).</p>
+              </div>
+              <span class="text-xs font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                ${this.formatMoney(this.targetSalary)} Líquido
+              </span>
+            </div>
+
+            <!-- Contrato 1 -->
+            <div class="bg-white rounded-xl border border-sky-300 p-3 shadow-sm space-y-1 text-xs">
+              <span class="text-[9px] font-black uppercase bg-sky-100 text-sky-900 px-2 py-0.5 rounded">
+                Contrato 1 • Farmacia Independiente (RUT A)
+              </span>
+              <div class="flex justify-between items-center pt-1">
+                <span class="font-bold text-slate-800">Farmacia San Pablo (2do QF)</span>
+                <span class="text-sm font-black text-sky-800">${this.formatMoney(stats.salarySanPablo)}</span>
+              </div>
+              <p class="text-slate-500 text-[11px]">
+                ${stats.daysByLoc['loc-sp'] || 0} turnos en semana • ${stats.hoursSanPablo.toFixed(1)} horas acumuladas
+              </p>
+            </div>
+
+            <!-- Contrato 2 -->
+            <div class="bg-white rounded-xl border border-emerald-300 p-3 shadow-sm space-y-1 text-xs">
+              <span class="text-[9px] font-black uppercase bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">
+                Contrato 2 • Franquicias Cruz Verde (RUT B)
+              </span>
+              <div class="flex justify-between items-center pt-1">
+                <span class="font-bold text-slate-800">Cruz Verde #1 y #2 (DT Reemplazo)</span>
+                <span class="text-sm font-black text-emerald-800">${this.formatMoney(stats.salaryCruzVerde)}</span>
+              </div>
+              <div class="pt-1.5 border-t border-slate-100 text-[11px] text-emerald-800 flex justify-between font-bold">
+                <span>Recargo Dominical ${this.dominicalSurcharge}% (Ley 20.823):</span>
+                <span>+${this.formatMoney(stats.sundayBonus)}</span>
+              </div>
+            </div>
+
+            <!-- Ajuste de Parámetros -->
+            <div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-2">
+              <h3 class="font-black text-slate-700 uppercase text-[10px]">Ajustar Parámetros de Acuerdo</h3>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[10px] text-slate-500 font-bold block">Sueldo Total Pactado</label>
+                  <input 
+                    type="number" 
+                    step="50000"
+                    value="${this.targetSalary}" 
+                    onchange="app.targetSalary = Number(this.value) || 0; app.render();" 
+                    class="w-full bg-slate-50 border border-slate-300 rounded p-1.5 font-bold"
+                  />
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-500 font-bold block">Jornada Meta (hrs)</label>
+                  <input 
+                    type="number" 
+                    value="${this.targetHours}" 
+                    onchange="app.targetHours = Number(this.value) || 40; app.render();" 
+                    class="w-full bg-slate-50 border border-slate-300 rounded p-1.5 font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+
+      // --- VISTA 5: WHATSAPP ---
+      renderWhatsAppView(stats) {
+        const text = `Estimado, junto con saludar, adjunto mi propuesta de calendario y turnos para ${MONTH_NAMES[this.currentMonthIndex]} ${this.currentYear}:
+
+📌 RESUMEN DE JORNADA:
+• Total de horas efectivas: ${stats.totalNetHours.toFixed(1)} hrs
+• Promedio semanal: ${stats.avgWeekly.toFixed(1)} hrs/sem (Meta legal ${this.targetHours}h)
+
+🏥 DISTRIBUCIÓN POR LOCAL:
+• San Pablo (2do QF): ${stats.daysByLoc['loc-sp'] || 0} turnos
+• Sábados DT (Cruz Verde 1): ${stats.daysByLoc['loc-cv1'] || 0} turnos
+• Domingos DT (Cruz Verde 2): ${stats.daysByLoc['loc-cv2'] || 0} turnos
+
+🛌 DÍAS DE DESCANSO COMPENSATORIO Y LIBRES:
+• Lunes libres garantizados post-domingo de turno DT.
+• Total días libres y feriados programados: ${stats.offDays + stats.holidayDays} días.
+
+Quedo atento a tu confirmación para coordinar los contratos correspondientes. ¡Saludos cordiales!`;
+
+        return `
+          <div class="space-y-3 animate-in fade-in">
+            <h2 class="text-base font-black text-slate-900">Mensaje para Enviar al Empleador</h2>
+            <p class="text-[11px] text-slate-500">Copia y envía este resumen antes del día 20 del mes previo.</p>
+
+            <div class="bg-white p-3 rounded-xl border border-slate-300 text-[11px] font-mono whitespace-pre-wrap leading-relaxed shadow-sm">
+${text}
+            </div>
+
+            <button 
+              onclick="app.copyText('${encodeURIComponent(text)}')" 
+              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-3 rounded-xl shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <span>📋</span>
+              <span>Copiar Mensaje para WhatsApp</span>
+            </button>
+          </div>
+        `;
+      },
+
+      copyText(encoded) {
+        const text = decodeURIComponent(encoded);
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        this.showToast('¡Mensaje copiado listo para WhatsApp!');
+      },
+
+      // --- MODALES ---
+      openShiftModal(shiftId) {
+        const isNew = !shiftId;
+        const shift = isNew ? { id: '', name: '', start: '10:15', end: '18:30', breakMin: 60, cssClass: 'bg-t1', isOff: false } : this.shifts.find(s => s.id === shiftId);
+
+        const colors = [
+          { id: 'bg-t1', name: 'Naranja' },
+          { id: 'bg-t2', name: 'Celeste' },
+          { id: 'bg-libre', name: 'Verde' },
+          { id: 'bg-feriado', name: 'Gris' },
+          { id: 'bg-custom-purple', name: 'Morado' },
+          { id: 'bg-custom-rose', name: 'Rosa' },
+          { id: 'bg-custom-yellow', name: 'Amarillo' }
+        ];
+
+        document.getElementById('modal-container').innerHTML = `
+          <div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 shadow-2xl animate-in zoom-in-95">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h3 class="font-black text-xs text-slate-900">${isNew ? 'Nuevo Turno' : `Editar ${shift.id}`}</h3>
+              <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="font-bold text-slate-400">✕</button>
+            </div>
+
+            <form onsubmit="app.saveShift(event, ${isNew})">
+              <div class="space-y-2 text-xs">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500">Código</label>
+                  <input id="modal-shift-id" type="text" maxlength="5" ${!isNew ? 'disabled' : ''} value="${shift.id}" required class="w-full bg-slate-50 border rounded p-1.5 font-bold uppercase" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500">Nombre</label>
+                  <input id="modal-shift-name" type="text" value="${shift.name}" required class="w-full bg-slate-50 border rounded p-1.5 font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500">Tipo</label>
+                  <select id="modal-shift-isoff" onchange="document.getElementById('shift-hours-group').style.display = this.value === 'true' ? 'none' : 'grid'" class="w-full bg-slate-50 border rounded p-1.5 font-bold">
+                    <option value="false" ${!shift.isOff ? 'selected' : ''}>Día de Trabajo</option>
+                    <option value="true" ${shift.isOff ? 'selected' : ''}>Día Libre / Feriado</option>
+                  </select>
+                </div>
+
+                <div id="shift-hours-group" style="display: ${shift.isOff ? 'none' : 'grid'}" class="grid grid-cols-2 gap-1.5 bg-slate-50 p-2 rounded border">
+                  <div>
+                    <label class="block text-[9px] font-bold text-slate-500">Entrada</label>
+                    <input id="modal-shift-start" type="time" value="${shift.start}" class="w-full bg-white border rounded p-1" />
+                  </div>
+                  <div>
+                    <label class="block text-[9px] font-bold text-slate-500">Salida</label>
+                    <input id="modal-shift-end" type="time" value="${shift.end}" class="w-full bg-white border rounded p-1" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-[9px] font-bold text-slate-500">Minutos Colación</label>
+                    <input id="modal-shift-break" type="number" step="15" value="${shift.breakMin}" class="w-full bg-white border rounded p-1" />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500 mb-1">Color</label>
+                  <select id="modal-shift-color" class="w-full bg-slate-50 border rounded p-1.5 font-bold">
+                    ${colors.map(c => `<option value="${c.id}" ${shift.cssClass === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <div class="flex gap-2 pt-3">
+                <button type="button" onclick="document.getElementById('modal-container').classList.add('hidden')" class="flex-1 bg-slate-100 py-2 rounded text-xs font-bold text-slate-700">Cancelar</button>
+                <button type="submit" class="flex-1 bg-slate-900 py-2 rounded text-xs font-bold text-white">Guardar</button>
+              </div>
+            </form>
+          </div>
+        `;
+        document.getElementById('modal-container').classList.remove('hidden');
+      },
+
+      saveShift(e, isNew) {
+        e.preventDefault();
+        const id = document.getElementById('modal-shift-id').value.trim().toUpperCase();
+        const name = document.getElementById('modal-shift-name').value.trim();
+        const isOff = document.getElementById('modal-shift-isoff').value === 'true';
+        const start = document.getElementById('modal-shift-start').value;
+        const end = document.getElementById('modal-shift-end').value;
+        const breakMin = Number(document.getElementById('modal-shift-break').value) || 0;
+        const cssClass = document.getElementById('modal-shift-color').value;
+
+        if (isNew) {
+          if (this.shifts.some(s => s.id === id)) {
+            this.showToast('Ya existe este turno', true);
+            return;
+          }
+          this.shifts.push({ id, name, isOff, start, end, breakMin, cssClass });
+          this.showToast(`Turno ${id} creado`);
+        } else {
+          const s = this.shifts.find(item => item.id === id);
+          if (s) {
+            s.name = name;
+            s.isOff = isOff;
+            s.start = start;
+            s.end = end;
+            s.breakMin = breakMin;
+            s.cssClass = cssClass;
+          }
+          this.showToast(`Turno ${id} guardado`);
+        }
+
+        document.getElementById('modal-container').classList.add('hidden');
+        this.render();
+      },
+
+      deleteShift(id) {
+        if (this.shifts.length <= 1) {
+          this.showToast('Debes mantener al menos 1 turno', true);
+          return;
+        }
+        this.shifts = this.shifts.filter(s => s.id !== id);
+        if (this.activeBrushShift === id) this.activeBrushShift = this.shifts[0].id;
+        this.showToast(`Turno ${id} eliminado`);
+        this.render();
+      },
+
+      openLocationModal(locId) {
+        const isNew = !locId;
+        const loc = isNew ? { id: `loc-${Date.now()}`, name: '', short: '', rut: 'RUT Empresa', role: 'Químico Farmacéutico', color: '#059669' } : this.locations.find(l => l.id === locId);
+
+        document.getElementById('modal-container').innerHTML = `
+          <div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 shadow-2xl animate-in zoom-in-95">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h3 class="font-black text-xs text-slate-900">${isNew ? 'Nueva Farmacia' : `Editar ${loc.short}`}</h3>
+              <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="font-bold text-slate-400">✕</button>
+            </div>
+
+            <form onsubmit="app.saveLocation(event, '${loc.id}', ${isNew})">
+              <div class="space-y-2 text-xs">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500">Nombre</label>
+                  <input id="modal-loc-name" type="text" value="${loc.name}" required class="w-full bg-slate-50 border rounded p-1.5 font-bold" />
+                </div>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <div>
+                    <label class="block text-[10px] font-bold text-slate-500">Sigla (Malla)</label>
+                    <input id="modal-loc-short" type="text" maxlength="10" value="${loc.short}" required class="w-full bg-slate-50 border rounded p-1.5 font-bold" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-slate-500">Color</label>
+                    <input id="modal-loc-color" type="color" value="${loc.color}" class="w-full h-8 rounded border p-0.5 bg-slate-50" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500">Razón Social / RUT</label>
+                  <input id="modal-loc-rut" type="text" value="${loc.rut}" class="w-full bg-slate-50 border rounded p-1.5 font-bold" />
+                </div>
+              </div>
+
+              <div class="flex gap-2 pt-3">
+                <button type="button" onclick="document.getElementById('modal-container').classList.add('hidden')" class="flex-1 bg-slate-100 py-2 rounded text-xs font-bold text-slate-700">Cancelar</button>
+                <button type="submit" class="flex-1 bg-slate-900 py-2 rounded text-xs font-bold text-white">Guardar</button>
+              </div>
+            </form>
+          </div>
+        `;
+        document.getElementById('modal-container').classList.remove('hidden');
+      },
+
+      saveLocation(e, locId, isNew) {
+        e.preventDefault();
+        const name = document.getElementById('modal-loc-name').value.trim();
+        const short = document.getElementById('modal-loc-short').value.trim();
+        const color = document.getElementById('modal-loc-color').value;
+        const rut = document.getElementById('modal-loc-rut').value.trim();
+
+        if (isNew) {
+          this.locations.push({ id: locId, name, short, color, rut, role: 'Químico Farmacéutico' });
+          this.showToast(`Local ${short} agregado`);
+        } else {
+          const l = this.locations.find(item => item.id === locId);
+          if (l) {
+            l.name = name;
+            l.short = short;
+            l.color = color;
+            l.rut = rut;
+          }
+          this.showToast(`Local ${short} actualizado`);
+        }
+
+        document.getElementById('modal-container').classList.add('hidden');
+        this.render();
+      },
+
+      deleteLocation(id) {
+        if (this.locations.length <= 1) {
+          this.showToast('Debes mantener al menos 1 local', true);
+          return;
+        }
+        this.locations = this.locations.filter(l => l.id !== id);
+        if (this.activeBrushLocation === id) this.activeBrushLocation = this.locations[0].id;
+        if (this.locationFilter === id) this.locationFilter = 'all';
+        this.showToast('Local eliminado');
+        this.render();
+      }
+    };
+
+    // Inicializar aplicación al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      window.app.render();
+    });
+  </script>
+</body>
+</html>
