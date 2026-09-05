@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Planificador 40H - Turnos Farmacia</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+      -webkit-touch-callout: none;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+      overflow-x: hidden;
+    }
+    input, textarea, select {
+      user-select: text;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    /* Colores exactos de turnos */
+    .bg-t1 { background-color: #ffdca8; color: #3d2304; }
+    .bg-t2 { background-color: #82cfff; color: #082f49; }
+    .bg-libre { background-color: #c3e6cb; color: #064e3b; }
+    .bg-feriado { background-color: #94a3b8; color: #ffffff; }
+    .bg-custom-purple { background-color: #e9d5ff; color: #581c87; }
+    .bg-custom-rose { background-color: #fecdd3; color: #881337; }
+    .bg-custom-yellow { background-color: #fef08a; color: #713f12; }
+
+    /* Animaciones fluidas de Swipe */
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideInLeft {
+      from { transform: translateX(-100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .anim-slide-left { animation: slideInRight 0.25s ease-out forwards; }
+    .anim-slide-right { animation: slideInLeft 0.25s ease-out forwards; }
+  </style>
+</head>
+<body class="bg-slate-200 text-slate-800 antialiased min-h-screen">
+
+  <div class="w-full max-w-md mx-auto bg-white min-h-screen shadow-2xl flex flex-col relative pb-28">
+    
+    <!-- HEADER -->
+    <header class="bg-[#37474f] text-white sticky top-0 z-30 shadow-md">
+      <div class="flex justify-between items-center px-3.5 py-2 text-xs font-bold border-b border-slate-600/60">
+        <div class="flex items-center gap-1.5">
+          <span class="text-base">💊</span>
+          <span class="text-teal-300 uppercase font-black tracking-wider text-[11px]">SAN PABLO & CRUZ VERDE</span>
+        </div>
+        <button onclick="app.setTab('sueldos')" class="bg-slate-700/90 hover:bg-slate-600 text-slate-100 text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1">
+          <span>BASE 30D:</span>
+          <span id="badge-weekly-hours" class="text-emerald-300">-- h/s</span>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between px-3 py-2">
+        <button onclick="app.changeMonth(-1)" class="p-1.5 hover:bg-slate-700/80 rounded-lg text-slate-200 active:scale-95 transition-all">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="text-center">
+          <h1 id="month-title-display" class="font-black text-sm uppercase tracking-wider text-white select-none">...</h1>
+        </div>
+        <button onclick="app.changeMonth(1)" class="p-1.5 hover:bg-slate-700/80 rounded-lg text-slate-200 active:scale-95 transition-all">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main id="main-content" class="flex-1 flex flex-col p-2 bg-slate-50 overflow-x-hidden"></main>
+
+    <!-- BOTTOM NAV FLOTANTE ANTI-BANNERS -->
+    <nav class="fixed bottom-4 left-4 right-4 z-[99999] bg-[#263238] text-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-slate-600 overflow-hidden max-w-[400px] mx-auto">
+      <div class="flex text-center font-bold text-[9px]">
+        <button id="nav-btn-calendario" onclick="app.setTab('calendario')" class="flex-1 py-2.5 transition-all active:bg-slate-700">
+          <span class="block text-lg mb-0.5">📅</span><span class="tracking-wide">MALLA</span>
+        </button>
+        <button id="nav-btn-turnos" onclick="app.setTab('turnos')" class="flex-1 py-2.5 transition-all active:bg-slate-700">
+          <span class="block text-lg mb-0.5">⚙️</span><span class="tracking-wide">TURNOS</span>
+        </button>
+        <button id="nav-btn-sueldos" onclick="app.setTab('sueldos')" class="flex-1 py-2.5 transition-all active:bg-slate-700">
+          <span class="block text-lg mb-0.5">💰</span><span class="tracking-wide">SUELDO</span>
+        </button>
+        <button id="nav-btn-sugerencias" onclick="app.setTab('sugerencias')" class="flex-1 py-2.5 transition-all active:bg-slate-700">
+          <span class="block text-lg mb-0.5">💡</span><span class="tracking-wide">TIPS</span>
+        </button>
+        <button id="nav-btn-whatsapp" onclick="app.setTab('whatsapp')" class="flex-1 py-2.5 transition-all active:bg-slate-700">
+          <span class="block text-lg mb-0.5">📤</span><span class="tracking-wide">ENVIAR</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- MODALS CONTAINER -->
+  <div id="modal-container" class="hidden fixed inset-0 bg-black/70 z-[100000] flex items-center justify-center p-4 backdrop-blur-sm"></div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="hidden fixed top-3 left-1/2 -translate-x-1/2 z-[100001] px-4 py-2.5 rounded-full shadow-2xl text-xs font-bold text-white flex items-center gap-2 transition-all"></div>
+
+  <!-- SCRIPT -->
+  <script>
+    // Feriados Chile
+    const CHILE_HOLIDAYS = {
+      '2026-01-01': { name: 'Año Nuevo', irrenunciable: true },
+      '2026-04-03': { name: 'Viernes Santo', irrenunciable: false },
+      '2026-04-04': { name: 'Sábado Santo', irrenunciable: false },
+      '2026-05-01': { name: 'Día del Trabajo', irrenunciable: true },
+      '2026-05-21': { name: 'Glorias Navales', irrenunciable: false },
+      '2026-06-21': { name: 'Pueblos Indígenas', irrenunciable: false },
+      '2026-06-29': { name: 'San Pedro y San Pablo', irrenunciable: false },
+      '2026-07-16': { name: 'Virgen del Carmen', irrenunciable: false },
+      '2026-08-15': { name: 'Asunción de la Virgen', irrenunciable: false },
+      '2026-09-18': { name: 'Fiestas Patrias', irrenunciable: true },
+      '2026-09-19': { name: 'Glorias del Ejército', irrenunciable: true },
+      '2026-10-12': { name: 'Encuentro de Dos Mundos', irrenunciable: false },
+      '2026-10-31': { name: 'Día Iglesias Evangélicas', irrenunciable: false },
+      '2026-11-01': { name: 'Día de Todos los Santos', irrenunciable: false },
+      '2026-12-08': { name: 'Inmaculada Concepción', irrenunciable: false },
+      '2026-12-25': { name: 'Navidad', irrenunciable: true },
+      '2027-01-01': { name: 'Año Nuevo', irrenunciable: true }
+    };
+    const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    // Valores por Defecto
+    const DEFAULT_LOCATIONS = [
+      { id: 'loc-sp', name: 'Farmacia San Pablo', short: 'San Pablo', rut: 'RUT A', role: '2do QF', color: '#0284c7' },
+      { id: 'loc-cv1', name: 'Cruz Verde 1 (Sábado)', short: 'Cruz Verde #1', rut: 'RUT B', role: 'DT Sábados', color: '#059669' },
+      { id: 'loc-cv2', name: 'Cruz Verde 2 (Domingo)', short: 'Cruz Verde #2', rut: 'RUT B', role: 'DT Domingos', color: '#0d9488' }
+    ];
+    const DEFAULT_SHIFTS = [
+      { id: 'T1', name: 'Regular', start: '10:15', end: '18:30', breakMin: 60, cssClass: 'bg-t1', isOff: false },
+      { id: 'T2', name: 'Domingo', start: '09:00', end: '19:00', breakMin: 150, cssClass: 'bg-t2', isOff: false },
+      { id: 'Libre', name: 'Descanso', start: '', end: '', breakMin: 0, cssClass: 'bg-libre', isOff: true },
+      { id: 'F', name: 'Feriado', start: '', end: '', breakMin: 0, cssClass: 'bg-feriado', isOff: true }
+    ];
+    const PRESET_COLORS = ['#0284c7', '#059669', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#475569', '#b91c1c'];
+
+    // Gestor de Almacenamiento (localStorage)
+    const Storage = {
+      save: (key, data) => localStorage.setItem(`farmacia40h_${key}`, JSON.stringify(data)),
+      load: (key, fallback) => {
+        const item = localStorage.getItem(`farmacia40h_${key}`);
+        return item ? JSON.parse(item) : fallback;
+      }
+    };
+
+    window.app = {
+      // Estado
+      activeTab: 'calendario',
+      currentYear: new Date().getFullYear(),
+      currentMonthIndex: new Date().getMonth(),
+      animClass: '',
+      
+      // Ajustes y Datos
+      settings: Storage.load('settings', { salary: 1700000, targetHours: 40, dominical: 30 }),
+      locations: Storage.load('locations', DEFAULT_LOCATIONS),
+      shifts: Storage.load('shifts', DEFAULT_SHIFTS),
+      schedules: Storage.load('schedules', {}),
+      
+      locationFilter: 'all',
+      activeBrushShift: 'T1',
+      activeBrushLocation: 'loc-sp',
+      
+      // Control táctil
+      touchTimer: null, 
+      isTouching: false,
+      startX: 0,
+      startY: 0,
+      isLongPress: false,
+
+      // --- INICIALIZACIÓN ---
+      init() {
+        this.bindSwipeGestures();
+        this.render();
+      },
+
+      saveAll() {
+        Storage.save('settings', this.settings);
+        Storage.save('locations', this.locations);
+        Storage.save('shifts', this.shifts);
+        Storage.save('schedules', this.schedules);
+      },
+
+      // --- UTILIDADES ---
+      getDateStr(y, m, d) {
+        return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      },
+      getMonthKey2(y, m) {
+        return `${y}-${String(m + 1).padStart(2, '0')}`;
+      },
+      calcNetHours(start, end, breakMin) {
+        if (!start || !end) return 0;
+        const [hS, mS] = start.split(':').map(Number);
+        const [hE, mE] = end.split(':').map(Number);
+        let minS = (hS * 60) + mS;
+        let minE = (hE * 60) + mE;
+        if (minE <= minS) minE += 24 * 60;
+        return Math.max(0, (minE - minS - (parseInt(breakMin) || 0)) / 60);
+      },
+      formatMoney: (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val || 0),
+      
+      showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.className = `fixed top-3 left-1/2 -translate-x-1/2 z-[100001] px-4 py-2.5 rounded-full shadow-2xl text-xs font-bold text-white flex items-center gap-2 transition-all ${isError ? 'bg-rose-600' : 'bg-slate-900'}`;
+        t.innerHTML = `<span>${isError ? '⚠️' : '✅'}</span><span>${msg}</span>`;
+        t.classList.remove('hidden');
+        setTimeout(() => t.classList.add('hidden'), 2500);
+      },
+
+      // --- SWIPE GESTURES ---
+      bindSwipeGestures() {
+        let touchstartX = 0;
+        let touchstartY = 0;
+        document.addEventListener('touchstart', e => {
+          touchstartX = e.changedTouches[0].screenX;
+          touchstartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', e => {
+          if (this.activeTab !== 'calendario') return;
+          if (!document.getElementById('modal-container').classList.contains('hidden')) return;
+
+          const endX = e.changedTouches[0].screenX;
+          const diffX = touchstartX - endX;
+          const diffY = touchstartY - e.changedTouches[0].screenY;
+
+          if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 60) {
+            if (diffX > 0) this.changeMonth(1); 
+            else this.changeMonth(-1); 
+          }
+        }, { passive: true });
+      },
+
+      // --- NAVEGACIÓN ---
+      setTab(tab) {
+        this.activeTab = tab;
+        this.animClass = ''; // Limpiar cualquier animación
+        this.render();
+      },
+
+      changeMonth(dir) {
+        this.animClass = dir > 0 ? 'anim-slide-left' : 'anim-slide-right';
+        if (dir > 0) {
+          if (this.currentMonthIndex === 11) { this.currentMonthIndex = 0; this.currentYear++; } 
+          else this.currentMonthIndex++;
+        } else {
+          if (this.currentMonthIndex === 0) { this.currentMonthIndex = 11; this.currentYear--; } 
+          else this.currentMonthIndex--;
+        }
+        this.render();
+      },
+
+      // --- SISTEMA TÁCTIL (LONG PRESS VS TAP) ---
+      startPress(e, y, m, d) {
+        if (e.type === 'touchstart') this.isTouching = true;
+        if (e.type === 'mousedown' && this.isTouching) return; 
+
+        this.isLongPress = false;
+        this.startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+        this.startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+        
+        this.touchTimer = setTimeout(() => {
+          this.isLongPress = true;
+          this.openDayException(y, m, d);
+        }, 500); 
+      },
+
+      cancelPressIfMoved(e) {
+        if (!this.touchTimer) return;
+        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+        const currentY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+        
+        if (Math.abs(currentX - this.startX) > 10 || Math.abs(currentY - this.startY) > 10) {
+          this.cancelPress();
+        }
+      },
+
+      cancelPress() {
+        if (this.touchTimer) {
+          clearTimeout(this.touchTimer);
+          this.touchTimer = null;
+        }
+      },
+
+      endPress(e, y, m, d) {
+        if (e.type === 'mouseup' && this.isTouching) {
+          setTimeout(() => this.isTouching = false, 100);
+          return;
+        }
+
+        if (this.touchTimer) {
+          clearTimeout(this.touchTimer);
+          this.touchTimer = null;
+          
+          if (!this.isLongPress) {
+            this.handleDayTap(y, m, d);
+          }
+        }
+      },
+
+      // --- ASIGNACIÓN DE TURNOS Y EXCEPCIONES ---
+      handleDayTap(y, m, d) {
+        const key = this.getMonthKey2(y, m);
+        if (!this.schedules[key]) this.schedules[key] = {};
+        
+        const current = this.schedules[key][String(d)];
+        
+        // Efecto Toggle (Despintar si tocas con el mismo pincel)
+        if (current && current.shiftId === this.activeBrushShift && current.locationId === this.activeBrushLocation) {
+          delete this.schedules[key][String(d)];
+        } else {
+          this.schedules[key][String(d)] = { shiftId: this.activeBrushShift, locationId: this.activeBrushLocation };
+        }
+        this.saveAll();
+        this.animClass = ''; // Prevenir animación al re-renderizar
+        this.render();
+      },
+
+      openDayException(y, m, d) {
+        const key = this.getMonthKey2(y, m);
+        const sched = (this.schedules[key] || {})[String(d)];
+        
+        if (!sched) return; 
+        const shift = this.shifts.find(s => s.id === sched.shiftId);
+        if (!shift || shift.isOff) return; // No permitir editar días libres/feriados
+
+        const start = sched.customStart !== undefined ? sched.customStart : shift.start;
+        const end = sched.customEnd !== undefined ? sched.customEnd : shift.end;
+        const breakMin = sched.customBreak !== undefined ? sched.customBreak : shift.breakMin;
+
+        document.getElementById('modal-container').innerHTML = `
+          <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div class="flex justify-between items-center border-b pb-2">
+              <div>
+                <h3 class="font-black text-sm text-slate-900">Excepción de Horario</h3>
+                <p class="text-[10px] text-slate-500">Día ${d} de ${MONTH_NAMES[m]} ${y}</p>
+              </div>
+              <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="font-bold text-slate-400 text-lg">✕</button>
+            </div>
+            <form onsubmit="app.saveException(event, ${y}, ${m}, ${d})" class="space-y-3">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500">Entrada Especial</label>
+                  <input id="exc-start" type="time" value="${start}" class="w-full bg-slate-50 border rounded-lg p-2 font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500">Salida Especial</label>
+                  <input id="exc-end" type="time" value="${end}" class="w-full bg-slate-50 border rounded-lg p-2 font-bold" />
+                </div>
+                <div class="col-span-2">
+                  <label class="block text-[10px] font-bold text-slate-500">Minutos Colación</label>
+                  <input id="exc-break" type="number" step="5" value="${breakMin}" class="w-full bg-slate-50 border rounded-lg p-2 font-bold" />
+                </div>
+              </div>
+              <p class="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 leading-tight">
+                Nota: Esto cambiará el horario solo para este día en particular (marcado con ⏱️).
+              </p>
+              <div class="flex gap-2 pt-2">
+                <button type="button" onclick="app.clearException(${y}, ${m}, ${d})" class="flex-1 bg-rose-50 text-rose-600 py-2.5 rounded-xl text-xs font-bold">Restablecer</button>
+                <button type="submit" class="flex-1 bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold shadow-md">Guardar</button>
+              </div>
+            </form>
+          </div>
+        `;
+        document.getElementById('modal-container').classList.remove('hidden');
+      },
+
+      saveException(e, y, m, d) {
+        e.preventDefault();
+        const key = this.getMonthKey2(y, m);
+        const sched = this.schedules[key][String(d)];
+        sched.customStart = document.getElementById('exc-start').value;
+        sched.customEnd = document.getElementById('exc-end').value;
+        sched.customBreak = parseInt(document.getElementById('exc-break').value) || 0;
+        this.saveAll();
+        document.getElementById('modal-container').classList.add('hidden');
+        this.showToast('Excepción guardada para este día');
+        this.animClass = ''; // Prevenir re-animación
+        this.render();
+      },
+
+      clearException(y, m, d) {
+        const key = this.getMonthKey2(y, m);
+        const sched = this.schedules[key][String(d)];
+        delete sched.customStart;
+        delete sched.customEnd;
+        delete sched.customBreak;
+        this.saveAll();
+        document.getElementById('modal-container').classList.add('hidden');
+        this.showToast('Horario restablecido al turno original');
+        this.animClass = '';
+        this.render();
+      },
+
+      // --- INFERENCIA INTELIGENTE DE FERIADOS (IA BÁSICA) ---
+      // Detecta qué turno sueles hacer cada día de la semana para asignarle su valor al feriado
+      inferDefaultHours() {
+        const defaultShiftHoursByDay = { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 };
+        const shiftCountsByDay = { 0:{}, 1:{}, 2:{}, 3:{}, 4:{}, 5:{}, 6:{} };
+        
+        const key = this.getMonthKey2(this.currentYear, this.currentMonthIndex);
+        const sched = this.schedules[key] || {};
+        const daysInMonth = new Date(this.currentYear, this.currentMonthIndex + 1, 0).getDate();
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+          const raw = sched[String(d)];
+          if (raw) {
+            const shift = this.shifts.find(s => s.id === raw.shiftId);
+            if (shift && !shift.isOff) {
+              const dow = new Date(this.currentYear, this.currentMonthIndex, d).getDay();
+              shiftCountsByDay[dow][shift.id] = (shiftCountsByDay[dow][shift.id] || 0) + 1;
+            }
+          }
+        }
+        
+        for (let dow = 0; dow <= 6; dow++) {
+          let maxCount = 0; let bestId = null;
+          for (const [sId, count] of Object.entries(shiftCountsByDay[dow])) {
+            if (count > maxCount) { maxCount = count; bestId = sId; }
+          }
+          if (bestId) {
+            const s = this.shifts.find(x => x.id === bestId);
+            defaultShiftHoursByDay[dow] = this.calcNetHours(s.start, s.end, s.breakMin);
+          }
+        }
+        return defaultShiftHoursByDay;
+      },
+
+      // --- GENERACIÓN DE MATRIZ DE CALENDARIO ---
+      getMatrix() {
+        const daysInMonth = new Date(this.currentYear, this.currentMonthIndex + 1, 0).getDate();
+        const daysInPrev = new Date(this.currentYear, this.currentMonthIndex, 0).getDate();
+        const firstDay = new Date(this.currentYear, this.currentMonthIndex, 1);
+        
+        let offset = firstDay.getDay() - 1;
+        if (offset === -1) offset = 6; // Lunes = 0
+
+        const weeks = [];
+        let curWeek = [];
+
+        let prevYear = this.currentMonthIndex === 0 ? this.currentYear - 1 : this.currentYear;
+        let prevMonth = this.currentMonthIndex === 0 ? 11 : this.currentMonthIndex - 1;
+        for (let i = offset - 1; i >= 0; i--) {
+          curWeek.push({ year: prevYear, month: prevMonth, day: daysInPrev - i, isCurrent: false });
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          curWeek.push({ year: this.currentYear, month: this.currentMonthIndex, day: d, isCurrent: true });
+          if (curWeek.length === 7) { weeks.push(curWeek); curWeek = []; }
+        }
+
+        if (curWeek.length > 0) {
+          let nextD = 1;
+          let nextYear = this.currentMonthIndex === 11 ? this.currentYear + 1 : this.currentYear;
+          let nextMonth = this.currentMonthIndex === 11 ? 0 : this.currentMonthIndex + 1;
+          while (curWeek.length < 7) {
+            curWeek.push({ year: nextYear, month: nextMonth, day: nextD++, isCurrent: false });
+          }
+          weeks.push(curWeek);
+        }
+        return weeks;
+      },
+
+      // --- CÁLCULOS MENSUALES (SUELDO BASE 30 DÍAS) ---
+      getStats() {
+        const key = this.getMonthKey2(this.currentYear, this.currentMonthIndex);
+        const sched = this.schedules[key] || {};
+        const daysInMonth = new Date(this.currentYear, this.currentMonthIndex + 1, 0).getDate();
+
+        let physicalHours = 0; 
+        let sundayHours = 0;
+        const hoursByLoc = {};
+        const daysByLoc = {};
+        this.locations.forEach(l => { hoursByLoc[l.id] = 0; daysByLoc[l.id] = 0; });
+        let offDays = 0, holidayDays = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const raw = sched[String(d)];
+          const dObj = new Date(this.currentYear, this.currentMonthIndex, d);
+          let dayOfWeek = dObj.getDay();
+
+          if (raw) {
+            const shift = this.shifts.find(s => s.id === raw.shiftId);
+            if (shift) {
+              if (shift.id === 'Libre') offDays++;
+              if (shift.id === 'F') holidayDays++;
+
+              if (!shift.isOff) {
+                const s = raw.customStart || shift.start;
+                const e = raw.customEnd || shift.end;
+                const b = raw.customBreak !== undefined ? raw.customBreak : shift.breakMin;
+                const h = this.calcNetHours(s, e, b);
+
+                if (hoursByLoc[raw.locationId] !== undefined) {
+                  hoursByLoc[raw.locationId] += h;
+                  daysByLoc[raw.locationId] += 1;
+                }
+                if (dayOfWeek === 0) sundayHours += h;
+                
+                physicalHours += h;
+              }
+            }
+          }
+        }
+
+        const hoursSanPablo = hoursByLoc['loc-sp'] || 0;
+        let hoursCruzVerde = 0;
+        Object.keys(hoursByLoc).forEach(lId => { if (lId !== 'loc-sp') hoursCruzVerde += hoursByLoc[lId]; });
+
+        // FÓRMULA LEGAL CHILENA PARA VALOR HORA (Base Sueldo Mensual 30 Días)
+        // (Sueldo / 30) * 28 / Horas Semanales
+        const legalBaseRate = (this.settings.salary / 30) * 28 / this.settings.targetHours;
+
+        const totalWorked = hoursSanPablo + hoursCruzVerde;
+        let salarySanPablo = this.settings.salary;
+        let salaryCruzVerde = 0;
+        
+        if (totalWorked > 0) {
+            salarySanPablo = (hoursSanPablo / totalWorked) * this.settings.salary;
+            salaryCruzVerde = (hoursCruzVerde / totalWorked) * this.settings.salary;
+        }
+
+        const sundayBonus = sundayHours * legalBaseRate * (this.settings.dominical / 100);
+        salaryCruzVerde += sundayBonus; 
+
+        return {
+          physicalHours, sundayHours, hoursByLoc, daysByLoc, hoursSanPablo, hoursCruzVerde,
+          salarySanPablo, salaryCruzVerde, sundayBonus, offDays, holidayDays
+        };
+      },
+
+      // --- RENDER DOM ---
+      render() {
+        document.getElementById('month-title-display').innerText = `${MONTH_NAMES[this.currentMonthIndex]} ${this.currentYear}`;
+        const stats = this.getStats();
+        
+        const tabs = ['calendario', 'turnos', 'sueldos', 'sugerencias', 'whatsapp'];
+        tabs.forEach(t => {
+          const btn = document.getElementById(`nav-btn-${t}`);
+          if (btn) {
+            if (this.activeTab === t) {
+              btn.className = 'flex-1 py-2 transition-all bg-slate-700 text-teal-300 border-t-2 border-teal-300';
+              btn.children[0].className = 'block text-lg mb-0 leading-tight'; 
+              btn.children[1].className = 'text-[9px] font-black tracking-widest';
+            } else {
+              btn.className = 'flex-1 py-2.5 transition-all text-slate-400 hover:text-slate-200 border-t-2 border-transparent';
+              btn.children[0].className = 'block text-base mb-0.5 leading-tight'; 
+              btn.children[1].className = 'text-[8px] font-bold tracking-wide opacity-80'; 
+            }
+          }
+        });
+
+        const main = document.getElementById('main-content');
+        if (this.activeTab === 'calendario') main.innerHTML = this.renderCalendarView(stats);
+        else if (this.activeTab === 'turnos') main.innerHTML = this.renderShiftsView();
+        else if (this.activeTab === 'sueldos') main.innerHTML = this.renderSalaryView(stats);
+        else if (this.activeTab === 'sugerencias') main.innerHTML = this.renderSuggestionsView();
+        else if (this.activeTab === 'whatsapp') main.innerHTML = this.renderWhatsAppView(stats);
+      },
+
+      // --- VISTA 1: CALENDARIO INTERACTIVO ---
+      renderCalendarView(stats) {
+        const matrix = this.getMatrix();
+        const defaultHoursByDay = this.inferDefaultHours();
+        
+        const currentAnim = this.animClass;
+        this.animClass = ''; // Limpiar animación para no repetirla en renderizados estáticos
+
+        // Calcular horas reales de Lunes a Domingo por semana (INCLUYENDO DÍAS DIFUMINADOS DE MESES VECINOS)
+        const weeklyStats = matrix.map(week => {
+          let wPhysical = 0, wPaidHolidays = 0;
+          week.forEach(c => {
+            const mKey = this.getMonthKey2(c.year, c.month);
+            const sched = this.schedules[mKey] || {};
+            const item = sched[String(c.day)];
+            const dObj = new Date(c.year, c.month, c.day);
+            let dayOfWeek = dObj.getDay();
+
+            if (item && (this.locationFilter === 'all' || item.locationId === this.locationFilter)) {
+              const shift = this.shifts.find(s => s.id === item.shiftId);
+              if (shift) {
+                if (!shift.isOff) {
+                  wPhysical += this.calcNetHours(item.customStart || shift.start, item.customEnd || shift.end, item.customBreak !== undefined ? item.customBreak : shift.breakMin);
+                } else if (shift.id === 'F' && dayOfWeek !== 0) {
+                  wPaidHolidays += (defaultHoursByDay[dayOfWeek] || 0); // Inteligencia de feriados
+                }
+              }
+            }
+          });
+          const contract = wPhysical + wPaidHolidays;
+          return { contract, exceeds: contract > this.settings.targetHours };
+        });
+
+        // PROMEDIO BASADO EN CICLOS BISEMANALES (Agrupa de 2 en 2)
+        let completedCycles = 0;
+        let totalCycleHours = 0;
+        for (let i = 0; i < weeklyStats.length - 1; i += 2) {
+          totalCycleHours += (weeklyStats[i].contract + weeklyStats[i+1].contract);
+          completedCycles++;
+        }
+        
+        // Calcula promedio del ciclo de 2 semanas, si no hay suficientes toma la semana 1
+        const trueWeeklyAverage = completedCycles > 0 
+          ? (totalCycleHours / (completedCycles * 2)) 
+          : (weeklyStats[0]?.contract || 0);
+        
+        // Actualizar badges (DOM) de forma segura
+        setTimeout(() => {
+           const badge = document.getElementById('badge-weekly-hours');
+           if (badge) badge.innerText = `${trueWeeklyAverage.toFixed(1)} h/s`;
+           const titleAvg = document.getElementById('title-avg-hours');
+           if(titleAvg) {
+              titleAvg.innerText = `${trueWeeklyAverage.toFixed(1)}h`;
+              titleAvg.className = trueWeeklyAverage > this.settings.targetHours ? 'text-red-600 font-black' : 'text-emerald-700 font-black';
+           }
+        }, 0);
+
+        let gridRows = matrix.map((week) => {
+          let cols = week.map(cell => {
+            const dateStr = this.getDateStr(cell.year, cell.month, cell.day);
+            const mKey = this.getMonthKey2(cell.year, cell.month);
+            const holiday = CHILE_HOLIDAYS[dateStr];
+            
+            const sched = this.schedules[mKey] || {};
+            const item = sched[String(cell.day)];
+            const shift = item ? this.shifts.find(s => s.id === item.shiftId) : null;
+            const loc = item ? this.locations.find(l => l.id === item.locationId) : null;
+            
+            const isDimmedLoc = item && this.locationFilter !== 'all' && item.locationId !== this.locationFilter;
+            const isFadedMonth = !cell.isCurrent;
+            const hasCustom = item && (item.customStart || item.customEnd || item.customBreak !== undefined);
+
+            let cellBg = shift ? shift.cssClass : (holiday ? 'bg-rose-50 text-rose-900' : 'bg-white text-slate-800');
+            
+            let opacityClasses = '';
+            if (isFadedMonth) opacityClasses = 'opacity-40 saturate-50';
+            else if (isDimmedLoc) opacityClasses = 'opacity-25 grayscale';
+
+            return `
+              <div 
+                ontouchstart="app.startPress(event, ${cell.year}, ${cell.month}, ${cell.day})"
+                ontouchend="app.endPress(event, ${cell.year}, ${cell.month}, ${cell.day})"
+                ontouchmove="app.cancelPressIfMoved(event)"
+                onmousedown="app.startPress(event, ${cell.year}, ${cell.month}, ${cell.day})"
+                onmouseup="app.endPress(event, ${cell.year}, ${cell.month}, ${cell.day})"
+                onmouseleave="app.cancelPress()"
+                onmousemove="app.cancelPressIfMoved(event)"
+                class="relative h-14 sm:h-16 p-0.5 sm:p-1 border-r border-slate-300 last:border-r-0 cursor-pointer flex flex-col justify-between transition-all select-none ${cellBg} ${opacityClasses} active:scale-95"
+              >
+                <div class="flex justify-between items-start leading-none pointer-events-none">
+                  ${holiday ? `<span class="text-[7px] sm:text-[8px] font-black px-0.5 rounded ${holiday.irrenunciable ? 'bg-rose-600 text-white' : 'bg-rose-200 text-rose-900'}">F</span>` : '<span class="w-1"></span>'}
+                  <span class="text-[10px] sm:text-xs font-black ${isFadedMonth ? 'text-slate-500' : (holiday ? 'text-rose-600' : '')}">${cell.day}</span>
+                </div>
+
+                ${shift ? `
+                  <div class="text-center my-auto pointer-events-none relative">
+                    <span class="font-black text-xs sm:text-sm tracking-tight leading-none block">${shift.id}</span>
+                    ${hasCustom ? `<span class="absolute -top-1 -right-1 text-[10px] drop-shadow-md" title="Excepción editada">⏱️</span>` : ''}
+                  </div>
+                ` : (holiday ? `<div class="text-[7px] font-bold text-rose-600 text-center truncate pointer-events-none px-0.5">Feriado</div>` : '')}
+
+                ${shift && loc ? `
+                  <div class="flex justify-center items-end pointer-events-none">
+                    <span class="text-[7px] font-bold px-1 rounded truncate max-w-full text-white leading-tight" style="background-color: ${loc.color}">${loc.short}</span>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('');
+          return `<div class="grid grid-cols-7 border-b border-slate-200 last:border-b-0">${cols}</div>`;
+        }).join('');
+
+        return `
+          <!-- Filtro y Promedio -->
+          <div class="flex justify-between items-center bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs mb-1.5 shadow-sm">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold text-slate-500">📍 Local:</span>
+              <select onchange="app.locationFilter = this.value; app.activeBrushLocation = this.value === 'all' ? app.locations[0].id : this.value; app.animClass=''; app.render();" class="text-xs font-bold bg-transparent outline-none text-slate-800 cursor-pointer border border-slate-200 rounded px-1">
+                <option value="all">Todos</option>
+                ${this.locations.map(l => `<option value="${l.id}" ${this.locationFilter === l.id ? 'selected' : ''}>${l.short}</option>`).join('')}
+              </select>
+            </div>
+            <div class="text-[10px] sm:text-[11px] font-bold text-right leading-tight">
+              <span class="text-slate-500">Promedio (Ciclo 2 Sem): <span id="title-avg-hours" class="font-black">...</span></span>
+            </div>
+          </div>
+
+          <!-- Cuadrícula 7 Columnas -->
+          <div class="bg-white rounded-lg border-2 border-slate-900 overflow-hidden shadow-sm ${currentAnim}">
+            <div class="grid grid-cols-7 border-b border-slate-900 bg-slate-100 text-center text-[10px] sm:text-xs font-black uppercase text-slate-700">
+              <div class="py-1">LUN</div><div class="py-1">MAR</div><div class="py-1">MIÉ</div><div class="py-1">JUE</div><div class="py-1">VIE</div><div class="py-1 text-blue-700">SÁB</div><div class="py-1 text-blue-700">DOM</div>
+            </div>
+            ${gridRows}
+          </div>
+
+          <!-- Resumen Semanal Dinámico -->
+          <div class="mt-2 bg-white rounded-lg p-2 border border-slate-200 shadow-sm flex items-center justify-between text-xs font-bold">
+            <span class="text-[10px] text-slate-500 uppercase tracking-tight font-black">Control Semanal:</span>
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar">
+              ${weeklyStats.map((w, idx) => `
+                <span class="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-black whitespace-nowrap ${w.exceeds ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-slate-100 text-slate-700'}">
+                  S${idx + 1}: ${w.contract.toFixed(0)}h
+                </span>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Pinceles -->
+          <div class="mt-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm space-y-2 mb-20">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-black uppercase text-slate-500">Pincel Activo:</span>
+              <div class="flex gap-2">
+                <select onchange="app.activeBrushLocation = this.value; app.animClass=''; app.render();" class="text-xs font-bold bg-slate-100 border border-slate-300 rounded px-1.5 py-0.5 outline-none max-w-[140px] truncate cursor-pointer">
+                  ${this.locations.map(l => `<option value="${l.id}" ${this.activeBrushLocation === l.id ? 'selected' : ''}>${l.short}</option>`).join('')}
+                </select>
+                <button onclick="app.openConfirm('Limpiar Mes', '¿Seguro que deseas borrar todos los turnos asignados de este mes?', 'app.clearCurrentMonth()')" class="bg-rose-100 text-rose-700 px-2 rounded hover:bg-rose-200 transition-colors" title="Borrar turnos del mes">🗑️</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-4 gap-1.5">
+              ${this.shifts.map(shift => {
+                const isSel = this.activeBrushShift === shift.id;
+                return `
+                  <button onclick="app.activeBrushShift = '${shift.id}'; app.animClass=''; app.render();" class="py-1.5 rounded-md border text-center font-black text-xs transition-all ${shift.cssClass} ${isSel ? 'border-slate-900 shadow-md ring-2 ring-slate-900/40 scale-[1.03]' : 'border-transparent opacity-85'}">
+                    ${shift.id}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+            <p class="text-[9px] text-center text-slate-400 font-medium pt-1">Toque simple para asignar. Mantenga presionado para editar hora.</p>
+          </div>
+        `;
+      },
+
+      // --- VISTA 2: EDITOR DE TURNOS Y LOCALES ---
+      renderShiftsView() {
+        return `
+          <div class="space-y-3 animate-in fade-in pb-20">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+              <h2 class="text-base font-black text-slate-900">Editor de Turnos</h2>
+              <button onclick="app.openShiftModal(null)" class="bg-slate-900 text-white text-[11px] font-black px-3 py-1.5 rounded-lg shadow-sm">+ Turno</button>
+            </div>
+            <div class="space-y-2">
+              ${this.shifts.map(shift => `
+                <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg border-2 border-slate-800 flex items-center justify-center font-black text-sm ${shift.cssClass}">
+                      ${shift.id}
+                    </div>
+                    <div>
+                      <h4 class="text-xs font-bold text-slate-900">${shift.name}</h4>
+                      <p class="text-[11px] text-slate-500">
+                        ${shift.isOff ? 'Día Libre / Feriado' : `${shift.start} - ${shift.end} (${shift.breakMin}m col. = ${this.calcNetHours(shift.start, shift.end, shift.breakMin)}h)`}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <button onclick="app.openShiftModal('${shift.id}')" class="bg-slate-100 p-1.5 rounded-md text-xs font-bold text-slate-600">✏️</button>
+                    <button onclick="app.deleteShift('${shift.id}')" class="bg-rose-50 p-1.5 rounded-md text-xs font-bold text-rose-600">🗑️</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="pt-3 border-t border-slate-200">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xs font-black uppercase text-slate-700 tracking-wider">Locales / Farmacias</h3>
+                <button onclick="app.openLocationModal(null)" class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded">+ Local</button>
+              </div>
+              <div class="space-y-1.5">
+                ${this.locations.map(loc => `
+                  <div class="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center text-xs shadow-sm">
+                    <div class="flex items-center gap-2">
+                      <div class="w-2.5 h-6 rounded-full" style="background-color: ${loc.color}"></div>
+                      <div>
+                        <span class="font-bold text-slate-900">${loc.name}</span>
+                        <span class="text-[10px] text-slate-500 block">${loc.rut}</span>
+                      </div>
+                    </div>
+                    <div class="flex gap-1">
+                      <button onclick="app.openLocationModal('${loc.id}')" class="text-slate-500 bg-slate-100 p-1.5 rounded hover:text-slate-800 text-xs font-bold">✏️</button>
+                      <button onclick="app.deleteLocation('${loc.id}')" class="text-rose-500 bg-rose-50 p-1.5 rounded hover:text-rose-800 text-xs font-bold">🗑️</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <!-- Respaldo y Restauración -->
+            <div class="pt-4 border-t border-slate-200 mt-2">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xs font-black uppercase text-slate-700 tracking-wider">💾 Respaldo y Restauración</h3>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <button onclick="app.exportBackup()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-[10px] font-bold shadow-sm transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                  <span class="text-base">📤</span> Copiar Respaldo
+                </button>
+                <button onclick="app.openImportModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-[10px] font-bold shadow-sm transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                  <span class="text-base">📥</span> Pegar y Restaurar
+                </button>
+                <button onclick="app.openConfirm('Restablecer de Fábrica', '¿Estás seguro? Esto borrará permanentemente todos tus turnos, sueldos y locales. La app volverá a su estado original de fábrica.', 'app.factoryReset()')" class="col-span-2 bg-rose-50 hover:bg-rose-100 text-rose-700 py-2.5 rounded-xl text-[10px] font-bold shadow-sm transition-all flex flex-col items-center justify-center gap-1 mt-1 active:scale-95">
+                  <span class="text-base">⚠️</span> Restablecer de Fábrica (Borrar Todo)
+                </button>
+              </div>
+            </div>
+
+          </div>
+        `;
+      },
+
+      // --- VISTA 3: SUELDO Y 2 CONTRATOS ---
+      renderSalaryView(stats) {
+        return `
+          <div class="space-y-3 animate-in fade-in pb-20">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+              <div>
+                <h2 class="text-base font-black text-slate-900">Desglose Legal 2 Contratos</h2>
+                <p class="text-[11px] text-slate-500">División por RUT y recargo dominical legal (30%).</p>
+              </div>
+              <span class="text-xs font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                ${this.formatMoney(this.settings.salary)} Líquido
+              </span>
+            </div>
+
+            <div class="bg-white rounded-xl border border-sky-300 p-3 shadow-sm space-y-1 text-xs">
+              <span class="text-[9px] font-black uppercase bg-sky-100 text-sky-900 px-2 py-0.5 rounded">
+                Contrato 1 • Farmacia Independiente (RUT A)
+              </span>
+              <div class="flex justify-between items-center pt-1">
+                <span class="font-bold text-slate-800">Farmacia San Pablo</span>
+                <span class="text-sm font-black text-sky-800">${this.formatMoney(stats.salarySanPablo)}</span>
+              </div>
+              <p class="text-slate-500 text-[11px]">
+                ${stats.daysByLoc['loc-sp'] || 0} turnos físicos • ${stats.hoursSanPablo.toFixed(1)} horas acumuladas
+              </p>
+            </div>
+
+            <div class="bg-white rounded-xl border border-emerald-300 p-3 shadow-sm space-y-1 text-xs">
+              <span class="text-[9px] font-black uppercase bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">
+                Contrato 2 • Franquicias Cruz Verde (RUT B)
+              </span>
+              <div class="flex justify-between items-center pt-1">
+                <span class="font-bold text-slate-800">Cruz Verde #1 y #2 (DT Reemplazo)</span>
+                <span class="text-sm font-black text-emerald-800">${this.formatMoney(stats.salaryCruzVerde)}</span>
+              </div>
+              <div class="pt-1.5 border-t border-slate-100 text-[11px] text-emerald-800 flex justify-between font-bold">
+                <span>Recargo Dominical ${this.settings.dominical}% (Ley 20.823):</span>
+                <span>+${this.formatMoney(stats.sundayBonus)}</span>
+              </div>
+            </div>
+
+            <div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-2">
+              <h3 class="font-black text-slate-700 uppercase text-[10px]">Ajustar Parámetros de Acuerdo</h3>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[10px] text-slate-500 font-bold block">Sueldo Total Pactado</label>
+                  <input 
+                    type="number" 
+                    step="50000"
+                    value="${this.settings.salary}" 
+                    onchange="app.settings.salary = Number(this.value) || 0; app.saveAll(); app.render();" 
+                    class="w-full bg-slate-50 border border-slate-300 rounded p-1.5 font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-500 font-bold block">Jornada Meta (hrs)</label>
+                  <input 
+                    type="number" 
+                    value="${this.settings.targetHours}" 
+                    onchange="app.settings.targetHours = Number(this.value) || 40; app.saveAll(); app.render();" 
+                    class="w-full bg-slate-50 border border-slate-300 rounded p-1.5 font-bold outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+
+      // --- VISTA 4: TIPS Y SUGERENCIAS ---
+      renderSuggestionsView() {
+        return `
+          <div class="space-y-3 animate-in fade-in pb-20">
+            <div class="border-b border-slate-200 pb-2">
+              <h2 class="text-base font-black text-slate-900">💡 Tips de Optimización</h2>
+              <p class="text-[11px] text-slate-500">Estrategias para mejorar tus turnos y calidad de vida.</p>
+            </div>
+            
+            <div class="bg-white p-4 rounded-xl border-l-4 border-amber-500 shadow-sm space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="font-black text-xs text-amber-900 uppercase">1. Acortar Sábado en Cruz Verde</h3>
+                <span class="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">Recomendado</span>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed">Si de martes a viernes en San Pablo sales a las 19:00 en lugar de 18:30, acumulas 2 horas a favor. Eso te permite reducir tu turno de Cruz Verde el sábado para trabajar solo de 10:00 a 13:00 y tener la tarde libre.</p>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border-l-4 border-sky-500 shadow-sm space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="font-black text-xs text-sky-900 uppercase">2. Reducir Colación Dominical</h3>
+                <span class="text-[9px] font-bold bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded">Calidad de Vida</span>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed">Los domingos en Cruz Verde tienes 2.5 horas de colación (7.5h netas). Si negocias tomar solo 1 hora de colación (de 09:00 a 17:30), cumples las mismas 7.5h, ganas el mismo 30% dominical y llegas a casa mucho antes.</p>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border-l-4 border-emerald-500 shadow-sm space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="font-black text-xs text-emerald-900 uppercase">3. Inteligencia de Feriados</h3>
+                <span class="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">Algoritmo Legal</span>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed">La app detecta qué turno haces regularmente cada día de la semana. Cuando asignas un Feriado (F), el sistema le otorga el valor en horas de ese turno regular, asegurando que tu promedio de ciclo cierre perfecto según la Base de 30 Días.</p>
+            </div>
+          </div>
+        `;
+      },
+
+      // --- VISTA 5: WHATSAPP ---
+      renderWhatsAppView(stats) {
+        const text = `Estimado, adjunto propuesta de turnos para ${MONTH_NAMES[this.currentMonthIndex]} ${this.currentYear}:
+
+📌 RESUMEN DE JORNADA (BASE 30 DÍAS):
+• Total de horas efectivas presenciales: ${stats.physicalHours.toFixed(1)} hrs
+• Promedio de ciclo bisemanal: Cumplido (Meta 40h)
+
+🏥 DISTRIBUCIÓN:
+• San Pablo (Semana): ${stats.daysByLoc['loc-sp'] || 0} turnos
+• Sábados (Cruz Verde 1): ${stats.daysByLoc['loc-cv1'] || 0} turnos
+• Domingos (Cruz Verde 2): ${stats.daysByLoc['loc-cv2'] || 0} turnos
+
+🛌 DESCANSOS:
+• Lunes libres garantizados post-domingo DT.
+• Total días libres/feriados programados: ${stats.offDays + stats.holidayDays} días.
+
+Quedo atento a su confirmación. ¡Saludos!`;
+
+        return `
+          <div class="space-y-4 animate-in fade-in pb-20">
+            <div class="border-b border-slate-200 pb-2">
+              <h2 class="text-base font-black text-slate-900">Enviar Propuesta Mensual</h2>
+              <p class="text-[11px] text-slate-500">Copia y envía este resumen por WhatsApp antes del día 20.</p>
+            </div>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 text-xs font-mono whitespace-pre-wrap leading-relaxed shadow-inner text-slate-700">
+${text}
+            </div>
+            <button onclick="app.copyToClipboard(\`${encodeURIComponent(text)}\`)" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-3.5 rounded-xl shadow-lg active:scale-95 flex items-center justify-center gap-2 transition-all">
+              <span>📋</span><span>Copiar al Portapapeles</span>
+            </button>
+          </div>
+        `;
+      },
+
+      copyToClipboard(encoded) {
+        const text = decodeURIComponent(encoded);
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(() => this.showToast('¡Copiado correctamente!')).catch(() => this.fallbackCopy(text));
+        } else {
+          this.fallbackCopy(text);
+        }
+      },
+      fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+          document.execCommand('copy');
+          this.showToast('¡Copiado correctamente!');
+        } catch (err) {
+          this.showToast('Error al copiar', true);
+        }
+        document.body.removeChild(ta);
+      },
+
+      // --- RESPALDO, RESTAURACIÓN Y RESET ---
+      openConfirm(title, message, onConfirmCode) {
+        document.getElementById('modal-container').innerHTML = `
+          <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl animate-in zoom-in-95 text-center">
+            <div class="text-3xl mb-2">⚠️</div>
+            <h3 class="font-black text-sm text-slate-900">${title}</h3>
+            <p class="text-xs text-slate-500">${message}</p>
+            <div class="flex gap-2 pt-2">
+              <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="flex-1 bg-slate-100 py-2.5 rounded-xl text-xs font-bold text-slate-700">Cancelar</button>
+              <button onclick="${onConfirmCode}" class="flex-1 bg-rose-600 py-2.5 rounded-xl text-xs font-bold text-white shadow">Confirmar</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('modal-container').classList.remove('hidden');
+      },
+
+      clearCurrentMonth() {
+        const key = this.getMonthKey2(this.currentYear, this.currentMonthIndex);
+        this.schedules[key] = {};
+        this.saveAll();
+        document.getElementById('modal-container').classList.add('hidden');
+        this.showToast('Mes limpiado correctamente');
+        this.animClass = '';
+        this.render();
+      },
+
+      factoryReset() {
+        localStorage.clear();
+        location.reload();
+      },
+
+      exportBackup() {
+        const data = {
+          settings: this.settings,
+          locations: this.locations,
+          shifts: this.shifts,
+          schedules: this.schedules
+        };
+        const str = JSON.stringify(data);
+        const encoded = btoa(unescape(encodeURIComponent(str))); 
+        this.copyToClipboard(encodeURIComponent(encoded));
+      },
+
+      openImportModal() {
+        document.getElementById('modal-container').innerHTML = `
+          <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <h3 class="font-black text-sm text-slate-900">Restaurar Respaldo</h3>
+            <p class="text-[10px] text-slate-500">Pega el código de respaldo largo que copiaste anteriormente para restaurar tu configuración.</p>
+            <textarea id="import-code" rows="5" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-[10px] font-mono outline-none focus:ring-2 focus:ring-slate-900" placeholder="Pega el código aquí..."></textarea>
+            <div class="flex gap-2 pt-2">
+              <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="flex-1 bg-slate-100 py-2.5 rounded-xl text-xs font-bold text-slate-700">Cancelar</button>
+              <button onclick="app.processImport()" class="flex-1 bg-slate-900 py-2.5 rounded-xl text-xs font-bold text-white shadow">Restaurar</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('modal-container').classList.remove('hidden');
+      },
+
+      processImport() {
+        const code = document.getElementById('import-code').value.trim();
+        if (!code) return this.showToast('Pega un código válido', true);
+        try {
+          const decoded = decodeURIComponent(escape(atob(code)));
+          const data = JSON.parse(decoded);
+          
+          if (data.settings && data.locations && data.shifts && data.schedules) {
+            this.settings = data.settings;
+            this.locations = data.locations;
+            this.shifts = data.shifts;
+            this.schedules = data.schedules;
+            this.saveAll();
+            document.getElementById('modal-container').classList.add('hidden');
+            this.showToast('Datos restaurados con éxito');
+            this.animClass = '';
+            this.render();
+          } else {
+            throw new Error('Formato inválido');
+          }
+        } catch(e) {
+          this.showToast('El código de respaldo es inválido o está corrupto', true);
+        }
+      },
+
+      // --- MODALES (TURNOS Y LOCALES) ---
+      openShiftModal(shiftId) {
+        const isNew = !shiftId;
+        const shift = isNew ? { id: '', name: '', start: '10:00', end: '18:00', breakMin: 60, cssClass: 'bg-t1', isOff: false } : this.shifts.find(s => s.id === shiftId);
+        const colors = [
+          { id: 'bg-t1', name: 'Naranja' }, { id: 'bg-t2', name: 'Celeste' }, { id: 'bg-libre', name: 'Verde' }, { id: 'bg-feriado', name: 'Gris' },
+          { id: 'bg-custom-purple', name: 'Morado' }, { id: 'bg-custom-rose', name: 'Rosa' }, { id: 'bg-custom-yellow', name: 'Amarillo' }
+        ];
+
+        document.getElementById('modal-container').innerHTML = `
+          <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h3 class="font-black text-sm text-slate-900">${isNew ? 'Nuevo Turno' : `Editar Turno ${shift.id}`}</h3>
+              <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="font-bold text-slate-400 text-lg">✕</button>
+            </div>
+            <form onsubmit="app.saveShift(event, ${isNew})" class="space-y-3">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500 mb-1">Código</label>
+                  <input id="mod-sh-id" type="text" maxlength="4" ${!isNew ? 'disabled' : ''} value="${shift.id}" required class="w-full bg-slate-50 border rounded-lg p-2 font-bold uppercase" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-500 mb-1">Tipo</label>
+                  <select id="mod-sh-isoff" onchange="document.getElementById('mod-sh-grp').style.display = this.value === 'true' ? 'none' : 'grid'" class="w-full bg-slate-50 border rounded-lg p-2 font-bold text-xs outline-none">
+                    <option value="false" ${!shift.isOff ? 'selected' : ''}>Trabajo</option>
+                    <option value="true" ${shift.isOff ? 'selected' : ''}>Libre / Feriado</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">Nombre</label>
+                <input id="mod-sh-name" type="text" value="${shift.name}" required class="w-full bg-slate-50 border rounded-lg p-2 font-bold text-xs" />
+              </div>
+              <div id="mod-sh-grp" style="display: ${shift.isOff ? 'none' : 'grid'}" class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div>
+                  <label class="block text-[9px] font-bold text-slate-500">Entrada</label>
+                  <input id="mod-sh-st" type="time" value="${shift.start}" class="w-full bg-white border rounded p-1.5 font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[9px] font-bold text-slate-500">Salida</label>
+                  <input id="mod-sh-end" type="time" value="${shift.end}" class="w-full bg-white border rounded p-1.5 font-bold" />
+                </div>
+                <div class="col-span-2">
+                  <label class="block text-[9px] font-bold text-slate-500">Colación (Minutos)</label>
+                  <input id="mod-sh-br" type="number" step="15" value="${shift.breakMin}" class="w-full bg-white border rounded p-1.5 font-bold" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">Color</label>
+                <div class="grid grid-cols-4 gap-1.5 mt-1">
+                  ${colors.map(c => `
+                    <button type="button" onclick="document.getElementById('mod-sh-col').value='${c.id}'; document.querySelectorAll('.col-btn').forEach(b=>b.classList.remove('ring-2','ring-slate-900')); this.classList.add('ring-2','ring-slate-900')" class="col-btn h-6 rounded ${c.id} ${shift.cssClass === c.id ? 'ring-2 ring-slate-900' : ''}"></button>
+                  `).join('')}
+                  <input type="hidden" id="mod-sh-col" value="${shift.cssClass}" />
+                </div>
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button type="button" onclick="document.getElementById('modal-container').classList.add('hidden')" class="flex-1 bg-slate-100 py-2.5 rounded-xl text-xs font-bold text-slate-700">Cancelar</button>
+                <button type="submit" class="flex-1 bg-slate-900 py-2.5 rounded-xl text-xs font-bold text-white shadow">Guardar</button>
+              </div>
+            </form>
+          </div>
+        `;
+        document.getElementById('modal-container').classList.remove('hidden');
+      },
+
+      saveShift(e, isNew) {
+        e.preventDefault();
+        const id = document.getElementById('mod-sh-id').value.trim().toUpperCase();
+        const data = {
+          id, name: document.getElementById('mod-sh-name').value.trim(),
+          isOff: document.getElementById('mod-sh-isoff').value === 'true',
+          start: document.getElementById('mod-sh-st').value,
+          end: document.getElementById('mod-sh-end').value,
+          breakMin: Number(document.getElementById('mod-sh-br').value) || 0,
+          cssClass: document.getElementById('mod-sh-col').value
+        };
+
+        if (isNew) {
+          if (this.shifts.some(s => s.id === id)) return this.showToast('El código ya existe', true);
+          this.shifts.push(data);
+        } else {
+          const idx = this.shifts.findIndex(s => s.id === id);
+          if (idx !== -1) this.shifts[idx] = data;
+        }
+        this.saveAll();
+        document.getElementById('modal-container').classList.add('hidden');
+        this.showToast('Turno guardado');
+        this.animClass = '';
+        this.render();
+      },
+
+      deleteShift(id) {
+        if (this.shifts.length <= 1) return this.showToast('Debes mantener 1 turno', true);
+        this.shifts = this.shifts.filter(s => s.id !== id);
+        if (this.activeBrushShift === id) this.activeBrushShift = this.shifts[0].id;
+        this.saveAll();
+        this.showToast('Turno eliminado');
+        this.animClass = '';
+        this.render();
+      },
+
+      openLocationModal(locId) {
+        const isNew = !locId;
+        const loc = isNew ? { id: `loc-${Date.now()}`, name: '', short: '', rut: 'RUT Empresa', color: '#059669' } : this.locations.find(l => l.id === locId);
+        
+        const colorHtml = PRESET_COLORS.map(c => `
+          <div onclick="document.getElementById('mod-loc-color').value='${c}'; document.querySelectorAll('.loc-btn').forEach(b=>b.classList.remove('ring-2','ring-slate-900')); this.classList.add('ring-2','ring-slate-900')" 
+               class="loc-btn w-6 h-6 rounded-full cursor-pointer border border-black/10 ${loc.color === c ? 'ring-2 ring-slate-900' : ''}" style="background-color: ${c}"></div>
+        `).join('');
+
+        document.getElementById('modal-container').innerHTML = `
+          <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h3 class="font-black text-sm text-slate-900">${isNew ? 'Nuevo Local' : `Editar ${loc.short}`}</h3>
+              <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="font-bold text-slate-400 text-lg">✕</button>
+            </div>
+            <form onsubmit="app.saveLocation(event, '${loc.id}', ${isNew})" class="space-y-3">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">Nombre Completo</label>
+                <input id="mod-loc-name" type="text" value="${loc.name}" required class="w-full bg-slate-50 border rounded-lg p-2 font-bold text-xs" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">Sigla en Malla (Max 10)</label>
+                <input id="mod-loc-short" type="text" maxlength="10" value="${loc.short}" required class="w-full bg-slate-50 border rounded-lg p-2 font-bold text-xs" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">RUT / Empresa</label>
+                <input id="mod-loc-rut" type="text" value="${loc.rut}" class="w-full bg-slate-50 border rounded-lg p-2 font-bold text-xs" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-2">Color Etiqueta</label>
+                <input type="hidden" id="mod-loc-color" value="${loc.color}" />
+                <div class="flex gap-2 flex-wrap">${colorHtml}</div>
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button type="button" onclick="document.getElementById('modal-container').classList.add('hidden')" class="flex-1 bg-slate-100 py-2.5 rounded-xl text-xs font-bold text-slate-700">Cancelar</button>
+                <button type="submit" class="flex-1 bg-slate-900 py-2.5 rounded-xl text-xs font-bold text-white shadow">Guardar</button>
+              </div>
+            </form>
+          </div>
+        `;
+        document.getElementById('modal-container').classList.remove('hidden');
+      },
+
+      saveLocation(e, id, isNew) {
+        e.preventDefault();
+        const data = {
+          id, name: document.getElementById('mod-loc-name').value.trim(),
+          short: document.getElementById('mod-loc-short').value.trim(),
+          rut: document.getElementById('mod-loc-rut').value.trim(),
+          color: document.getElementById('mod-loc-color').value, role: 'QF'
+        };
+        if (isNew) this.locations.push(data);
+        else {
+          const idx = this.locations.findIndex(l => l.id === id);
+          if (idx !== -1) this.locations[idx] = data;
+        }
+        this.saveAll();
+        document.getElementById('modal-container').classList.add('hidden');
+        this.showToast('Local guardado');
+        this.animClass = '';
+        this.render();
+      },
+
+      deleteLocation(id) {
+        if (this.locations.length <= 1) return this.showToast('Debes mantener 1 local', true);
+        this.locations = this.locations.filter(l => l.id !== id);
+        if (this.activeBrushLocation === id) this.activeBrushLocation = this.locations[0].id;
+        if (this.locationFilter === id) this.locationFilter = 'all';
+        this.saveAll();
+        this.showToast('Local eliminado');
+        this.animClass = '';
+        this.render();
+      }
+    };
+
+    // Arranque
+    window.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>
